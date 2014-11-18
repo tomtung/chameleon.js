@@ -1,6 +1,6 @@
 /// <reference path="./three.d.ts" />
-/// <reference path="./three-trackballcontrols.d.ts" />
 /// <reference path="./dat.gui.d.ts" />
+/// <reference path="./chameleon.ts" />
 
 (() => {
 
@@ -91,16 +91,12 @@
         var headLight = new THREE.PointLight(0xFFFFFF, 0.4);
         scene.add(headLight);
 
-        var controls = new THREE.TrackballControls(camera);
-        controls.staticMoving = true;
-        controls.rotateSpeed = 1.5;
-        controls.zoomSpeed = 1.2;
-        controls.panSpeed = 0.8;
-
         var renderer = createRenderer();
         var canvas = renderer.domElement;
         setUpDrawingEvents(canvas, camera, mesh, controlParam);
         document.body.appendChild(canvas);
+
+        var controls = new Chameleon.Controls(camera, canvas);
 
         // Render loop
         var doRender = () => {
