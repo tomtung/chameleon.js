@@ -7,11 +7,16 @@ var Chameleon;
         State[State["Pan"] = 2] = "Pan";
         State[State["Rotate"] = 3] = "Rotate";
     })(State || (State = {}));
+    function showCanvasInNewWindow(canvas) {
+        var dataURL = canvas.toDataURL("image/png");
+        var newWindow = window.open();
+        newWindow.document.write('<img style="border:1px solid black" src="' + dataURL + '"/>');
+    }
     /**
      * The camera manipulation is borrowed from THREE.TrackballControls from the three.js examples
      */
     var Controls = (function () {
-        function Controls(camera, canvas) {
+        function Controls(mesh, camera, canvas) {
             var _this = this;
             this._state = 0 /* Idle */;
             this.rotateSpeed = 1.5;
@@ -26,6 +31,8 @@ var Chameleon;
             this._zoomEnd = 0;
             this._panStart = new THREE.Vector2();
             this._panEnd = new THREE.Vector2();
+            this._drawingMaterial = new THREE.MeshLambertMaterial();
+            this._nAffectedFaces = 0;
             this._getMouseOnScreen = (function () {
                 var vector = new THREE.Vector2();
                 return function (pageX, pageY) {
@@ -82,13 +89,14 @@ var Chameleon;
                 };
             })();
             this._mousedown = function (event) {
+                event.preventDefault();
+                event.stopPropagation();
                 if (_this._state !== 0 /* Idle */) {
                     return;
                 }
-                // NOTE only handle mouse down events with when shift key is held
+                // Hold shift key to rotate and pan
                 if (event.shiftKey) {
-                    event.preventDefault();
-                    event.stopPropagation();
+                    _this._useViewingTexture();
                     switch (event.button) {
                         case 0:
                             _this._state = 3 /* Rotate */;
@@ -106,7 +114,9 @@ var Chameleon;
                 }
                 else {
                     _this._state = 1 /* Draw */;
-                    console.log("Start drawing... (not implemented)");
+                    _this._useDrawingTexture();
+                    // TODO Implement drawing...
+                    console.log("Start drawing...");
                     console.log(event);
                 }
                 document.addEventListener('mousemove', _this._mousemove, false);
@@ -126,6 +136,7 @@ var Chameleon;
                         _this._panEnd.copy(_this._getMouseOnScreen(event.pageX, event.pageY));
                         break;
                     case 1 /* Draw */:
+                        // TODO Implement drawing...
                         console.log("Drawing... (not implemented)");
                         console.log(event);
                         break;
@@ -136,6 +147,7 @@ var Chameleon;
             this._mouseup = function (event) {
                 event.preventDefault();
                 event.stopPropagation();
+                _this.updateCamera();
                 _this._state = 0 /* Idle */;
                 document.removeEventListener('mousemove', _this._mousemove);
                 document.removeEventListener('mouseup', _this._mouseup);
@@ -143,6 +155,10 @@ var Chameleon;
             this._mousewheel = function (event) {
                 event.preventDefault();
                 event.stopPropagation();
+                if (_this._state !== 0 /* Idle */ || !event.shiftKey) {
+                    return;
+                }
+                _this._useViewingTexture();
                 var delta = 0;
                 if (event.wheelDelta) {
                     delta = event.wheelDelta / 40;
@@ -152,14 +168,18 @@ var Chameleon;
                 }
                 _this._zoomStart += delta * 0.01;
             };
+            this._mesh = mesh;
             this._camera = camera;
             this._canvas = canvas;
             this._canvas.addEventListener('contextmenu', function (e) { return e.preventDefault(); }, false);
             this._canvas.addEventListener('mousedown', this._mousedown, false);
             this._canvas.addEventListener('mousewheel', this._mousewheel, false);
             this._canvas.addEventListener('DOMMouseScroll', this._mousewheel, false); // firefox
+            this._nAffectedFaces = 0;
+            this._affectedFaces = new Uint32Array(this._mesh.geometry.faces.length);
+            this._useViewingTexture(true);
             this.handleResize();
-            this.update();
+            this.updateCamera();
         }
         Controls.prototype.handleResize = function () {
             var box = this._canvas.getBoundingClientRect();
@@ -176,13 +196,77 @@ var Chameleon;
                 this._zoomStart = this._zoomEnd;
             }
         };
-        Controls.prototype.update = function () {
+        Controls.prototype.updateCamera = function () {
             this._eye.subVectors(this._camera.position, this.target);
             this.rotateCamera();
             this.zoomCamera();
             this.panCamera();
             this._camera.position.addVectors(this.target, this._eye);
             this._camera.lookAt(this.target);
+        };
+        Controls.prototype._useViewingTexture = function (initialize) {
+            if (initialize === void 0) { initialize = false; }
+            if (initialize) {
+                var singlePixelCanvas = document.createElement('canvas');
+                singlePixelCanvas.width = singlePixelCanvas.height = 1;
+                var context = singlePixelCanvas.getContext('2d');
+                context.fillStyle = '#FFFFFF';
+                context.fillRect(0, 0, 1, 1);
+                showCanvasInNewWindow(singlePixelCanvas);
+                var lambertMaterial = new THREE.MeshLambertMaterial({ map: new THREE.Texture(singlePixelCanvas) });
+                lambertMaterial.map.needsUpdate = true;
+                this._viewingMaterial = new THREE.MeshFaceMaterial([
+                    lambertMaterial
+                ]);
+                this._viewingTextureUvs = [];
+                var faces = this._mesh.geometry.faces;
+                for (var i = 0; i < faces.length; i += 1) {
+                    faces[i].materialIndex = 0;
+                    this._viewingTextureUvs.push([
+                        new THREE.Vector2(0.5, 0.5),
+                        new THREE.Vector2(0.5, 0.5),
+                        new THREE.Vector2(0.5, 0.5)
+                    ]);
+                }
+            }
+            else if (this._usingViewingTexture) {
+                // Already using viewing texture, do nothing
+                return;
+            }
+            else {
+                // TODO update viewing texture from drawing texture
+                console.log('Preparing viewing texture...');
+            }
+            this._mesh.material = this._viewingMaterial;
+            this._mesh.geometry.faceVertexUvs[0] = this._viewingTextureUvs;
+            this._mesh.geometry.uvsNeedUpdate = true;
+            this._usingViewingTexture = true;
+        };
+        Controls.prototype._useDrawingTexture = function () {
+            // If already using the drawing texture, do nothing
+            if (!this._usingViewingTexture) {
+                return;
+            }
+            // Lazy initialization
+            if (!this._drawingMaterial) {
+                this._drawingMaterial = new THREE.MeshLambertMaterial();
+                this._drawingTextureUvs = [];
+                var faces = this._mesh.geometry.faces;
+                for (var i = 0; i < faces.length; i += 1) {
+                    faces[i].materialIndex = 0;
+                    this._drawingTextureUvs.push([
+                        new THREE.Vector2(),
+                        new THREE.Vector2(),
+                        new THREE.Vector2()
+                    ]);
+                }
+            }
+            // TODO render and apply drawing texture...
+            console.log('Preparing drawing texture...');
+            this._mesh.material = this._drawingMaterial;
+            this._mesh.geometry.faceVertexUvs[0] = this._drawingTextureUvs;
+            this._mesh.geometry.uvsNeedUpdate = true;
+            this._usingViewingTexture = false;
         };
         return Controls;
     })();
@@ -224,24 +308,6 @@ var Chameleon;
         renderer.setClearColor(0xAAAAAA, 1.0);
         return renderer;
     }
-    function setUpDrawingEvents(canvas, camera, mesh, param) {
-        // TODO this is where we put drawing logic
-        canvas.addEventListener('mousedown', function (e) {
-            if (event.shiftKey) {
-                return;
-            }
-            var mouse3D = new THREE.Vector3((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1, 0.5);
-            mouse3D.unproject(camera).sub(camera.position).normalize();
-            var raycaster = new THREE.Raycaster(camera.position, mouse3D);
-            var intersects = raycaster.intersectObject(mesh);
-            if (intersects.length > 0) {
-                // For the moment simply change color of the entire face
-                // TODO change this to drawing logic
-                intersects[0].face.color.set(param.color);
-                mesh.geometry.colorsNeedUpdate = true;
-            }
-        });
-    }
     function setUpDatGui() {
         var param = {
             color: "#439814",
@@ -262,12 +328,11 @@ var Chameleon;
         scene.add(headLight);
         var renderer = createRenderer();
         var canvas = renderer.domElement;
-        setUpDrawingEvents(canvas, camera, mesh, controlParam);
         document.body.appendChild(canvas);
-        var controls = new Chameleon.Controls(camera, canvas);
+        var controls = new Chameleon.Controls(mesh, camera, canvas);
         // Render loop
         var doRender = function () {
-            controls.update();
+            controls.updateCamera();
             headLight.position.copy(camera.position);
             headLight.intensity = controlParam.headLightBrightness;
             renderer.render(scene, camera);

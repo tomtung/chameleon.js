@@ -44,30 +44,6 @@
         return renderer;
     }
 
-    function setUpDrawingEvents(canvas: HTMLCanvasElement, camera: THREE.Camera, mesh: THREE.Mesh, param: any) {
-        // TODO this is where we put drawing logic
-        canvas.addEventListener('mousedown', (e)=> {
-            if (event.shiftKey) {
-                return;
-            }
-
-            var mouse3D = new THREE.Vector3(
-                ( event.clientX / window.innerWidth ) * 2 - 1,
-                -( event.clientY / window.innerHeight ) * 2 + 1,
-                0.5
-            );
-            mouse3D.unproject(camera).sub(camera.position).normalize();
-            var raycaster = new THREE.Raycaster(camera.position, mouse3D);
-            var intersects = raycaster.intersectObject(mesh);
-            if (intersects.length > 0) {
-                // For the moment simply change color of the entire face
-                // TODO change this to drawing logic
-                intersects[0].face.color.set(param.color);
-                mesh.geometry.colorsNeedUpdate = true;
-            }
-        });
-    }
-
     function setUpDatGui(): any {
         var param = {
             color: "#439814",
@@ -93,14 +69,13 @@
 
         var renderer = createRenderer();
         var canvas = renderer.domElement;
-        setUpDrawingEvents(canvas, camera, mesh, controlParam);
         document.body.appendChild(canvas);
 
-        var controls = new Chameleon.Controls(camera, canvas);
+        var controls = new Chameleon.Controls(mesh, camera, canvas);
 
         // Render loop
         var doRender = () => {
-            controls.update();
+            controls.updateCamera();
 
             headLight.position.copy(camera.position);
             headLight.intensity = controlParam.headLightBrightness;
