@@ -50,7 +50,10 @@ var Chameleon = (function () {
         this._zoomEnd = 0;
         this._panStart = new THREE.Vector2();
         this._panEnd = new THREE.Vector2();
-        this._drawingMaterial = new THREE.MeshLambertMaterial();
+        this._drawingCanvas = document.createElement('canvas');
+        this._drawingMaterial = new THREE.MeshLambertMaterial({
+            map: new THREE.Texture(this._drawingCanvas)
+        });
         this._drawingTextureMesh = new THREE.Mesh();
         this._drawingTextureScene = (function () {
             var scene = new THREE.Scene();
@@ -144,6 +147,10 @@ var Chameleon = (function () {
                 // TODO Implement drawing...
                 console.log("Start drawing...");
                 console.log(event);
+                // This is just to demonstrate that drawing texture is set up correctly
+                _this._drawingCanvas.getContext('2d').font = "20px Georgia";
+                _this._drawingCanvas.getContext('2d').fillText('Chameleon!', event.clientX, event.clientY);
+                Chameleon._showCanvasInNewWindow(_this._drawingCanvas);
             }
             document.addEventListener('mousemove', _this._mousemove, false);
             document.addEventListener('mouseup', _this._mouseup, false);
@@ -203,9 +210,9 @@ var Chameleon = (function () {
         this.canvas.addEventListener('mousedown', this._mousedown, false);
         this.canvas.addEventListener('mousewheel', this._mousewheel, false);
         this.canvas.addEventListener('DOMMouseScroll', this._mousewheel, false); // firefox
-        this._projectedVertices = [];
+        this._drawingVertexUvs = [];
         for (var i = 0; i < this._geometry.vertices.length; i += 1) {
-            this._projectedVertices.push(new THREE.Vector3());
+            this._drawingVertexUvs.push(new THREE.Vector3());
         }
         this._nAffectedFaces = 0;
         this._affectedFaces = new Uint32Array(this._geometry.faces.length);
@@ -233,15 +240,14 @@ var Chameleon = (function () {
         };
         initializeViewingTexture();
         var initializeDrawingTexture = function () {
-            _this._drawingMaterial = new THREE.MeshLambertMaterial();
             _this._drawingTextureUvs = [];
             var faces = _this._geometry.faces;
             for (var i = 0; i < faces.length; i += 1) {
                 faces[i].materialIndex = 0;
                 _this._drawingTextureUvs.push([
-                    new THREE.Vector2(),
-                    new THREE.Vector2(),
-                    new THREE.Vector2()
+                    new THREE.Vector2(0.5, 0.5),
+                    new THREE.Vector2(0.5, 0.5),
+                    new THREE.Vector2(0.5, 0.5)
                 ]);
             }
         };
@@ -308,9 +314,21 @@ var Chameleon = (function () {
         if (!this._usingViewingTexture) {
             return;
         }
-        // TODO render and apply drawing texture...
-        console.log('Preparing drawing texture...');
         this._renderer.render(this._drawingTextureScene, this._camera);
+        this._drawingCanvas.width = this._renderer.domElement.width;
+        this._drawingCanvas.height = this._renderer.domElement.height;
+        this._drawingCanvas.getContext('2d').drawImage(this._renderer.domElement, 0, 0);
+        this._drawingMaterial.map.needsUpdate = true;
+        for (var i = 0; i < this._geometry.vertices.length; i += 1) {
+            this._drawingVertexUvs[i].copy(this._geometry.vertices[i]).project(this._camera);
+            this._drawingVertexUvs[i].x = (this._drawingVertexUvs[i].x + 1) / 2;
+            this._drawingVertexUvs[i].y = (this._drawingVertexUvs[i].y + 1) / 2;
+        }
+        for (var i = 0; i < this._geometry.faces.length; i += 1) {
+            this._drawingTextureUvs[i][0].copy(this._drawingVertexUvs[this._geometry.faces[i].a]);
+            this._drawingTextureUvs[i][1].copy(this._drawingVertexUvs[this._geometry.faces[i].b]);
+            this._drawingTextureUvs[i][2].copy(this._drawingVertexUvs[this._geometry.faces[i].c]);
+        }
         this._mesh.material = this._drawingMaterial;
         this._geometry.faceVertexUvs[0] = this._drawingTextureUvs;
         this._geometry.uvsNeedUpdate = true;
