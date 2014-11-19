@@ -208,7 +208,7 @@ var Chameleon = (function () {
             this._projectedVertices.push(new THREE.Vector3());
         }
         this._nAffectedFaces = 0;
-        this._affectedFaces = new Uint32Array(this._mesh.geometry.faces.length);
+        this._affectedFaces = new Uint32Array(this._geometry.faces.length);
         var initializeViewingTexture = function () {
             var singlePixelCanvas = document.createElement('canvas');
             singlePixelCanvas.width = singlePixelCanvas.height = 1;
@@ -235,7 +235,7 @@ var Chameleon = (function () {
         var initializeDrawingTexture = function () {
             _this._drawingMaterial = new THREE.MeshLambertMaterial();
             _this._drawingTextureUvs = [];
-            var faces = _this._mesh.geometry.faces;
+            var faces = _this._geometry.faces;
             for (var i = 0; i < faces.length; i += 1) {
                 faces[i].materialIndex = 0;
                 _this._drawingTextureUvs.push([
@@ -248,9 +248,11 @@ var Chameleon = (function () {
         initializeDrawingTexture();
         this._mesh.geometry = this._geometry;
         this._mesh.material = this._viewingMaterial;
-        this._mesh.geometry.faceVertexUvs[0] = this._viewingTextureUvs;
-        this._mesh.geometry.uvsNeedUpdate = true;
+        this._geometry.faceVertexUvs[0] = this._viewingTextureUvs;
+        this._geometry.uvsNeedUpdate = true;
         this._usingViewingTexture = true;
+        this._drawingTextureMesh.geometry = this._geometry;
+        this._drawingTextureMesh.material = this._viewingMaterial;
         this.handleResize();
         this.update();
     }
@@ -297,8 +299,8 @@ var Chameleon = (function () {
         // TODO update viewing texture from drawing texture
         console.log('Preparing viewing texture...');
         this._mesh.material = this._viewingMaterial;
-        this._mesh.geometry.faceVertexUvs[0] = this._viewingTextureUvs;
-        this._mesh.geometry.uvsNeedUpdate = true;
+        this._geometry.faceVertexUvs[0] = this._viewingTextureUvs;
+        this._geometry.uvsNeedUpdate = true;
         this._usingViewingTexture = true;
     };
     Chameleon.prototype._useDrawingTexture = function () {
@@ -308,12 +310,10 @@ var Chameleon = (function () {
         }
         // TODO render and apply drawing texture...
         console.log('Preparing drawing texture...');
-        this._drawingTextureMesh.geometry = this._mesh.geometry.clone();
-        this._drawingTextureMesh.material = this._viewingMaterial.clone();
         this._renderer.render(this._drawingTextureScene, this._camera);
         this._mesh.material = this._drawingMaterial;
-        this._mesh.geometry.faceVertexUvs[0] = this._drawingTextureUvs;
-        this._mesh.geometry.uvsNeedUpdate = true;
+        this._geometry.faceVertexUvs[0] = this._drawingTextureUvs;
+        this._geometry.uvsNeedUpdate = true;
         this._usingViewingTexture = false;
     };
     return Chameleon;
