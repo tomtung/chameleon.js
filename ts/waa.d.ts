@@ -920,7 +920,7 @@ declare enum BiquadFilterType {
      * ## frequency
      * The cutoff frequency
      * ## Q
-     * Controls how peaked the response will be at the cutoff frequency. A large value makes the response more peaked. Please note that for this filter type, this value is not a traditional Q, but is a resonance value in decibels.
+     * Chameleon how peaked the response will be at the cutoff frequency. A large value makes the response more peaked. Please note that for this filter type, this value is not a traditional Q, but is a resonance value in decibels.
      * ## gain
      * Not used in this filter type
      */
@@ -932,7 +932,7 @@ declare enum BiquadFilterType {
      * ## frequency
      * The cutoff frequency below which the frequencies are attenuated
      * ## Q
-     * Controls how peaked the response will be at the cutoff frequency. A large value makes the response more peaked. Please note that for this filter type, this value is not a traditional Q, but is a resonance value in decibels.
+     * Chameleon how peaked the response will be at the cutoff frequency. A large value makes the response more peaked. Please note that for this filter type, this value is not a traditional Q, but is a resonance value in decibels.
      * ## gain
      * Not used in this filter type
      */
@@ -944,7 +944,7 @@ declare enum BiquadFilterType {
      * ## frequency
      * The center of the frequency band
      * ## Q
-     * Controls the width of the band. The width becomes narrower as the Q value increases.
+     * Chameleon the width of the band. The width becomes narrower as the Q value increases.
      * ## gain
      * Not used in this filter type
      */
@@ -980,7 +980,7 @@ declare enum BiquadFilterType {
      * ## frequency
      * The center frequency of where the boost is applied.
      * ## Q
-     * Controls the width of the band of frequencies that are boosted. A large value implies a narrow width.
+     * Chameleon the width of the band of frequencies that are boosted. A large value implies a narrow width.
      * ## gain
      * The boost, in dB, to be applied. If the value is negative, the frequencies are attenuated.
      */
@@ -992,7 +992,7 @@ declare enum BiquadFilterType {
      * ## frequency
      * The center frequency of where the notch is applied.
      * ## Q
-     * Controls the width of the band of frequencies that are attenuated. A large value implies a narrow width.
+     * Chameleon the width of the band of frequencies that are attenuated. A large value implies a narrow width.
      * ## gain
      * Not used in this filter type.
      */
@@ -1004,7 +1004,7 @@ declare enum BiquadFilterType {
      * ## frequency
      * The frequency where the center of the phase transition occurs. Viewed another way, this is the frequency with maximal group delay.
      * ## Q
-     * Controls how sharp the phase transition is at the center frequency. A larger value implies a sharper transition and a larger group delay.
+     * Chameleon how sharp the phase transition is at the center frequency. A larger value implies a sharper transition and a larger group delay.
      * ## gain
      * Not used in this filter type.
      */
