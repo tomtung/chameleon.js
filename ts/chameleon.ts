@@ -54,7 +54,7 @@ class Chameleon {
     zoomSpeed: number = 1.2;
     panSpeed: number = 0.8;
 
-    screen = {left: 0, top: 0, width: 0, height: 0};
+    canvasBox = {left: 0, top: 0, width: 0, height: 0};
     target: THREE.Vector3 = new THREE.Vector3();
 
     private _eye: THREE.Vector3 = new THREE.Vector3();
@@ -69,6 +69,7 @@ class Chameleon {
     private _viewingMaterial: THREE.MeshFaceMaterial;
     private _drawingTextureUvs: THREE.Vector2[][];
     private _drawingCanvas: HTMLCanvasElement = document.createElement('canvas');
+    private _drawingCanvasContext: CanvasRenderingContext2D = this._drawingCanvas.getContext('2d');
     private _drawingMaterial: THREE.MeshLambertMaterial =
         new THREE.MeshLambertMaterial({
             map: new THREE.Texture(this._drawingCanvas)
@@ -92,23 +93,27 @@ class Chameleon {
         this._camera.aspect = this.canvas.width / this.canvas.height;
         this._camera.updateProjectionMatrix();
 
-        var box = this.canvas.getBoundingClientRect();
-        var d = this.canvas.ownerDocument.documentElement;
-        this.screen.left = box.left + window.pageXOffset - d.clientLeft;
-        this.screen.top = box.top + window.pageYOffset - d.clientTop;
-        this.screen.width = box.width;
-        this.screen.height = box.height;
+        var canvasRect = this.canvas.getBoundingClientRect();
+        var docElement = this.canvas.ownerDocument.documentElement;
+        this.canvasBox.left = canvasRect.left + window.pageXOffset - docElement.clientLeft;
+        this.canvasBox.top = canvasRect.top + window.pageYOffset - docElement.clientTop;
+        this.canvasBox.width = canvasRect.width;
+        this.canvasBox.height = canvasRect.height;
 
         this._useViewingTexture();
     }
 
-    private _getMouseOnScreen = (() => {
+    private _getMousePositionInCanvas = (() => {
         var vector = new THREE.Vector2();
-        return (pageX: number, pageY: number) => {
+        return (pageX: number, pageY: number, normalize: boolean = false) => {
             vector.set(
-                ( pageX - this.screen.left ) / this.screen.width,
-                ( pageY - this.screen.top ) / this.screen.height
+                pageX - this.canvasBox.left,
+                pageY - this.canvasBox.top
             );
+            if (normalize) {
+                vector.x /= this.canvas.width;
+                vector.y /= this.canvas.height;
+            }
             return vector;
         };
     })();
@@ -120,8 +125,8 @@ class Chameleon {
 
         return (pageX: number, pageY: number) => {
             mouseOnBall.set(
-                ( pageX - this.screen.width * 0.5 - this.screen.left ) / (this.screen.width * .5),
-                ( this.screen.height * 0.5 + this.screen.top - pageY ) / (this.screen.height * .5),
+                ( pageX - this.canvasBox.width * 0.5 - this.canvasBox.left ) / (this.canvasBox.width * .5),
+                ( this.canvasBox.height * 0.5 + this.canvasBox.top - pageY ) / (this.canvasBox.height * .5),
                 0.0
             );
             var length = mouseOnBall.length();
@@ -271,7 +276,7 @@ class Chameleon {
                     break;
                 case 2: // Right button
                     this._state = ChameleonState.Pan;
-                    this._panStart.copy(this._getMouseOnScreen(event.pageX, event.pageY));
+                    this._panStart.copy(this._getMousePositionInCanvas(event.pageX, event.pageY, true));
                     this._panEnd.copy(this._panStart);
                     break;
                 default:
@@ -281,14 +286,11 @@ class Chameleon {
             this._state = ChameleonState.Draw;
             this._useDrawingTexture();
 
-            // TODO Implement drawing...
-            console.log("Start drawing...");
-            console.log(event);
-            // This is just to demonstrate that drawing texture is set up correctly
-            this._drawingCanvas.getContext('2d').font="20px Georgia";
-            this._drawingCanvas.getContext('2d').fillText('Chameleon!', event.clientX, event.clientY);
-            Chameleon._showCanvasInNewWindow(this._drawingCanvas);
-
+            var mousePosition = this._getMousePositionInCanvas(event.pageX, event.pageY);
+            this._drawingCanvasContext.moveTo(mousePosition.x, mousePosition.y);
+            this._drawingCanvasContext.strokeStyle = '#ff0000';
+            this._drawingMaterial.map.needsUpdate = true;
+            // TODO keep track of affected faces
         }
 
         document.addEventListener('mousemove', this._mousemove, false);
@@ -308,14 +310,14 @@ class Chameleon {
                 this._rotateEnd.copy(this._getMouseProjectionOnBall(event.pageX, event.pageY));
                 break;
             case ChameleonState.Pan:
-                this._panEnd.copy(this._getMouseOnScreen(event.pageX, event.pageY));
+                this._panEnd.copy(this._getMousePositionInCanvas(event.pageX, event.pageY, true));
                 break;
             case ChameleonState.Draw:
-
-                // TODO Implement drawing...
-                console.log("Drawing... (not implemented)");
-                console.log(event);
-
+                var mousePosition = this._getMousePositionInCanvas(event.pageX, event.pageY);
+                this._drawingCanvasContext.lineTo(mousePosition.x, mousePosition.y);
+                this._drawingCanvasContext.stroke();
+                this._drawingMaterial.map.needsUpdate = true;
+                // TODO keep track of affected faces
                 break;
             default:
                 debugger;
@@ -328,6 +330,9 @@ class Chameleon {
         event.stopPropagation();
 
         this.update();
+        if (this._state == ChameleonState.Draw) {
+            Chameleon._showCanvasInNewWindow(this._drawingCanvas);
+        }
         this._state = ChameleonState.Idle;
 
         document.removeEventListener('mousemove', this._mousemove);

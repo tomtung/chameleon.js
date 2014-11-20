@@ -41,7 +41,7 @@ var Chameleon = (function () {
         this.rotateSpeed = 1.5;
         this.zoomSpeed = 1.2;
         this.panSpeed = 0.8;
-        this.screen = { left: 0, top: 0, width: 0, height: 0 };
+        this.canvasBox = { left: 0, top: 0, width: 0, height: 0 };
         this.target = new THREE.Vector3();
         this._eye = new THREE.Vector3();
         this._rotateStart = new THREE.Vector3();
@@ -51,6 +51,7 @@ var Chameleon = (function () {
         this._panStart = new THREE.Vector2();
         this._panEnd = new THREE.Vector2();
         this._drawingCanvas = document.createElement('canvas');
+        this._drawingCanvasContext = this._drawingCanvas.getContext('2d');
         this._drawingMaterial = new THREE.MeshLambertMaterial({
             map: new THREE.Texture(this._drawingCanvas)
         });
@@ -62,10 +63,15 @@ var Chameleon = (function () {
             return scene;
         })();
         this._nAffectedFaces = 0;
-        this._getMouseOnScreen = (function () {
+        this._getMousePositionInCanvas = (function () {
             var vector = new THREE.Vector2();
-            return function (pageX, pageY) {
-                vector.set((pageX - _this.screen.left) / _this.screen.width, (pageY - _this.screen.top) / _this.screen.height);
+            return function (pageX, pageY, normalize) {
+                if (normalize === void 0) { normalize = false; }
+                vector.set(pageX - _this.canvasBox.left, pageY - _this.canvasBox.top);
+                if (normalize) {
+                    vector.x /= _this.canvas.width;
+                    vector.y /= _this.canvas.height;
+                }
                 return vector;
             };
         })();
@@ -74,7 +80,7 @@ var Chameleon = (function () {
             var objectUp = new THREE.Vector3();
             var mouseOnBall = new THREE.Vector3();
             return function (pageX, pageY) {
-                mouseOnBall.set((pageX - _this.screen.width * 0.5 - _this.screen.left) / (_this.screen.width * .5), (_this.screen.height * 0.5 + _this.screen.top - pageY) / (_this.screen.height * .5), 0.0);
+                mouseOnBall.set((pageX - _this.canvasBox.width * 0.5 - _this.canvasBox.left) / (_this.canvasBox.width * .5), (_this.canvasBox.height * 0.5 + _this.canvasBox.top - pageY) / (_this.canvasBox.height * .5), 0.0);
                 var length = mouseOnBall.length();
                 if (length > 1.0) {
                     mouseOnBall.normalize();
@@ -134,7 +140,7 @@ var Chameleon = (function () {
                         break;
                     case 2:
                         _this._state = 2 /* Pan */;
-                        _this._panStart.copy(_this._getMouseOnScreen(event.pageX, event.pageY));
+                        _this._panStart.copy(_this._getMousePositionInCanvas(event.pageX, event.pageY, true));
                         _this._panEnd.copy(_this._panStart);
                         break;
                     default:
@@ -144,13 +150,10 @@ var Chameleon = (function () {
             else {
                 _this._state = 1 /* Draw */;
                 _this._useDrawingTexture();
-                // TODO Implement drawing...
-                console.log("Start drawing...");
-                console.log(event);
-                // This is just to demonstrate that drawing texture is set up correctly
-                _this._drawingCanvas.getContext('2d').font = "20px Georgia";
-                _this._drawingCanvas.getContext('2d').fillText('Chameleon!', event.clientX, event.clientY);
-                Chameleon._showCanvasInNewWindow(_this._drawingCanvas);
+                var mousePosition = _this._getMousePositionInCanvas(event.pageX, event.pageY);
+                _this._drawingCanvasContext.moveTo(mousePosition.x, mousePosition.y);
+                _this._drawingCanvasContext.strokeStyle = '#ff0000';
+                _this._drawingMaterial.map.needsUpdate = true;
             }
             document.addEventListener('mousemove', _this._mousemove, false);
             document.addEventListener('mouseup', _this._mouseup, false);
@@ -166,12 +169,13 @@ var Chameleon = (function () {
                     _this._rotateEnd.copy(_this._getMouseProjectionOnBall(event.pageX, event.pageY));
                     break;
                 case 2 /* Pan */:
-                    _this._panEnd.copy(_this._getMouseOnScreen(event.pageX, event.pageY));
+                    _this._panEnd.copy(_this._getMousePositionInCanvas(event.pageX, event.pageY, true));
                     break;
                 case 1 /* Draw */:
-                    // TODO Implement drawing...
-                    console.log("Drawing... (not implemented)");
-                    console.log(event);
+                    var mousePosition = _this._getMousePositionInCanvas(event.pageX, event.pageY);
+                    _this._drawingCanvasContext.lineTo(mousePosition.x, mousePosition.y);
+                    _this._drawingCanvasContext.stroke();
+                    _this._drawingMaterial.map.needsUpdate = true;
                     break;
                 default:
                     debugger;
@@ -181,6 +185,9 @@ var Chameleon = (function () {
             event.preventDefault();
             event.stopPropagation();
             _this.update();
+            if (_this._state == 1 /* Draw */) {
+                Chameleon._showCanvasInNewWindow(_this._drawingCanvas);
+            }
             _this._state = 0 /* Idle */;
             document.removeEventListener('mousemove', _this._mousemove);
             document.removeEventListener('mouseup', _this._mouseup);
@@ -271,12 +278,12 @@ var Chameleon = (function () {
         this._renderer.setSize(this.canvas.width, this.canvas.height);
         this._camera.aspect = this.canvas.width / this.canvas.height;
         this._camera.updateProjectionMatrix();
-        var box = this.canvas.getBoundingClientRect();
-        var d = this.canvas.ownerDocument.documentElement;
-        this.screen.left = box.left + window.pageXOffset - d.clientLeft;
-        this.screen.top = box.top + window.pageYOffset - d.clientTop;
-        this.screen.width = box.width;
-        this.screen.height = box.height;
+        var canvasRect = this.canvas.getBoundingClientRect();
+        var docElement = this.canvas.ownerDocument.documentElement;
+        this.canvasBox.left = canvasRect.left + window.pageXOffset - docElement.clientLeft;
+        this.canvasBox.top = canvasRect.top + window.pageYOffset - docElement.clientTop;
+        this.canvasBox.width = canvasRect.width;
+        this.canvasBox.height = canvasRect.height;
         this._useViewingTexture();
     };
     Chameleon.prototype.zoomCamera = function () {
