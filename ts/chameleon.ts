@@ -281,11 +281,15 @@ class Chameleon {
         return (event: MouseEvent) => {
             var intersections = this._castRayFromMouse(event);
             if (intersections.length == 0) {
-                debugger;
                 return this._getMousePositionInCanvas(event);
             }
 
             var face = intersections[0].face;
+            var faceIndex = (<any>face).index;
+            console.assert(
+                faceIndex === 0 || faceIndex,
+                'Face index should have been set up in the constructor'
+            );
             THREE.Triangle.barycoordFromPoint(
                 intersections[0].point,
                 this._geometry.vertices[face.a],
@@ -296,13 +300,9 @@ class Chameleon {
             barycoord.toArray(<any>baryCoordXYZ);
 
             var result = new THREE.Vector2();
-            console.assert(
-                (<any>face).index === 0 || (<any>face).index,
-                'Face index should have been set up in the constructor'
-            );
             for (var i = 0; i < 3; i += 1) {
                 uv.copy(
-                    this._drawingTextureUvs[(<any>face).index][i]
+                    this._drawingTextureUvs[faceIndex][i]
                 ).multiplyScalar(baryCoordXYZ[i]);
                 result.add(uv);
             }

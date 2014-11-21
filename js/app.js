@@ -130,16 +130,16 @@ var Chameleon = (function () {
             return function (event) {
                 var intersections = _this._castRayFromMouse(event);
                 if (intersections.length == 0) {
-                    debugger;
                     return _this._getMousePositionInCanvas(event);
                 }
                 var face = intersections[0].face;
+                var faceIndex = face.index;
+                console.assert(faceIndex === 0 || faceIndex, 'Face index should have been set up in the constructor');
                 THREE.Triangle.barycoordFromPoint(intersections[0].point, _this._geometry.vertices[face.a], _this._geometry.vertices[face.b], _this._geometry.vertices[face.c], barycoord);
                 barycoord.toArray(baryCoordXYZ);
                 var result = new THREE.Vector2();
-                console.assert(face.index === 0 || face.index, 'Face index should have been set up in the constructor');
                 for (var i = 0; i < 3; i += 1) {
-                    uv.copy(_this._drawingTextureUvs[face.index][i]).multiplyScalar(baryCoordXYZ[i]);
+                    uv.copy(_this._drawingTextureUvs[faceIndex][i]).multiplyScalar(baryCoordXYZ[i]);
                     result.add(uv);
                 }
                 result.x *= _this._drawingCanvas.width;
