@@ -89,6 +89,8 @@ class Chameleon {
     private _drawingVertexUvs: THREE.Vector3[];
     private _nAffectedFaces: number = 0;
     private _affectedFaces: Uint32Array;
+    private _isFaceAffected: Uint8Array; // Used as if it's a boolean array
+    private _affectedFacesEmpty: Uint8Array; // Used to clear _isFaceAffected. Should not be modified once initialized.
 
     handleResize() {
         this._renderer.setSize(this.canvas.width, this.canvas.height);
@@ -220,6 +222,9 @@ class Chameleon {
             return;
         }
 
+        this._nAffectedFaces = 0;
+        this._isFaceAffected.set(this._affectedFacesEmpty);
+
         // TODO update viewing texture from drawing texture
         console.log('Preparing viewing texture...');
 
@@ -281,15 +286,12 @@ class Chameleon {
         return (event: MouseEvent) => {
             var intersections = this._castRayFromMouse(event);
             if (intersections.length == 0) {
-                return this._getMousePositionInCanvas(event);
+                return {pos: this._getMousePositionInCanvas(event), face: -1};
             }
 
             var face = intersections[0].face;
-            var faceIndex = (<any>face).index;
-            console.assert(
-                faceIndex === 0 || faceIndex,
-                'Face index should have been set up in the constructor'
-            );
+            var faceIndex = <number>(<any>face).index;
+
             THREE.Triangle.barycoordFromPoint(
                 intersections[0].point,
                 this._geometry.vertices[face.a],
@@ -299,20 +301,28 @@ class Chameleon {
             );
             barycoord.toArray(<any>baryCoordXYZ);
 
-            var result = new THREE.Vector2();
+            var drawingCanvasPos = new THREE.Vector2();
             for (var i = 0; i < 3; i += 1) {
                 uv.copy(
                     this._drawingTextureUvs[faceIndex][i]
                 ).multiplyScalar(baryCoordXYZ[i]);
-                result.add(uv);
+                drawingCanvasPos.add(uv);
             }
-            result.x *= this._drawingCanvas.width;
-            result.y = (1 - result.y) * this._drawingCanvas.height; // why 1-??
-            result.round();
+            drawingCanvasPos.x *= this._drawingCanvas.width;
+            drawingCanvasPos.y = (1 - drawingCanvasPos.y) * this._drawingCanvas.height; // why 1-??
+            drawingCanvasPos.round();
 
-            return result;
+            return {pos: drawingCanvasPos, face: faceIndex};
         }
     })();
+
+    private _recordAffectedFace(faceIndex: number) {
+        if (faceIndex >= 0 && !this._isFaceAffected[faceIndex]) {
+            this._affectedFaces[this._nAffectedFaces] = faceIndex;
+            this._isFaceAffected[faceIndex] = 1;
+            this._nAffectedFaces += 1;
+        }
+    }
 
     private _mousedown = (event: MouseEvent) => {
         event.preventDefault();
@@ -344,11 +354,13 @@ class Chameleon {
             this._state = ChameleonState.Draw;
             this._useDrawingTexture();
 
-            var mousePosition = this._computeMousePositionInDrawingCanvas(event);
-            this._drawingCanvasContext.moveTo(mousePosition.x, mousePosition.y);
+            var pos_face = this._computeMousePositionInDrawingCanvas(event);
+            this._drawingCanvasContext.moveTo(pos_face.pos.x, pos_face.pos.y);
             this._drawingCanvasContext.strokeStyle = '#ff0000';
+            this._drawingCanvasContext.stroke();
             this._drawingMaterial.map.needsUpdate = true;
-            // TODO keep track of affected faces
+
+            this._recordAffectedFace(pos_face.face);
         }
 
         document.addEventListener('mousemove', this._mousemove, false);
@@ -371,11 +383,12 @@ class Chameleon {
                 this._panEnd.copy(this._getMousePositionInCanvas(event, true));
                 break;
             case ChameleonState.Draw:
-                var mousePosition = this._computeMousePositionInDrawingCanvas(event);
-                this._drawingCanvasContext.lineTo(mousePosition.x, mousePosition.y);
+                var pos_face = this._computeMousePositionInDrawingCanvas(event);
+                this._drawingCanvasContext.lineTo(pos_face.pos.x, pos_face.pos.y);
                 this._drawingCanvasContext.stroke();
                 this._drawingMaterial.map.needsUpdate = true;
-                // TODO keep track of affected faces
+
+                this._recordAffectedFace(pos_face.face);
                 break;
             default:
                 debugger;
@@ -389,7 +402,9 @@ class Chameleon {
 
         this.update();
         if (this._state == ChameleonState.Draw) {
+            // Some debugging code
             Chameleon._showCanvasInNewWindow(this._drawingCanvas);
+            console.log(this._affectedFaces.subarray(0, this._nAffectedFaces));
         }
         this._state = ChameleonState.Idle;
 
@@ -439,6 +454,8 @@ class Chameleon {
         }
         this._nAffectedFaces = 0;
         this._affectedFaces = new Uint32Array(this._geometry.faces.length);
+        this._isFaceAffected = new Uint8Array(this._geometry.faces.length);
+        this._affectedFacesEmpty = new Uint8Array(this._geometry.faces.length);
 
         var initializeViewingTexture = () => {
             var singlePixelCanvas = <HTMLCanvasElement>document.createElement('canvas');

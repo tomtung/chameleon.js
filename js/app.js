@@ -130,22 +130,21 @@ var Chameleon = (function () {
             return function (event) {
                 var intersections = _this._castRayFromMouse(event);
                 if (intersections.length == 0) {
-                    return _this._getMousePositionInCanvas(event);
+                    return { pos: _this._getMousePositionInCanvas(event), face: -1 };
                 }
                 var face = intersections[0].face;
                 var faceIndex = face.index;
-                console.assert(faceIndex === 0 || faceIndex, 'Face index should have been set up in the constructor');
                 THREE.Triangle.barycoordFromPoint(intersections[0].point, _this._geometry.vertices[face.a], _this._geometry.vertices[face.b], _this._geometry.vertices[face.c], barycoord);
                 barycoord.toArray(baryCoordXYZ);
-                var result = new THREE.Vector2();
+                var drawingCanvasPos = new THREE.Vector2();
                 for (var i = 0; i < 3; i += 1) {
                     uv.copy(_this._drawingTextureUvs[faceIndex][i]).multiplyScalar(baryCoordXYZ[i]);
-                    result.add(uv);
+                    drawingCanvasPos.add(uv);
                 }
-                result.x *= _this._drawingCanvas.width;
-                result.y = (1 - result.y) * _this._drawingCanvas.height; // why 1-??
-                result.round();
-                return result;
+                drawingCanvasPos.x *= _this._drawingCanvas.width;
+                drawingCanvasPos.y = (1 - drawingCanvasPos.y) * _this._drawingCanvas.height; // why 1-??
+                drawingCanvasPos.round();
+                return { pos: drawingCanvasPos, face: faceIndex };
             };
         })();
         this._mousedown = function (event) {
@@ -175,10 +174,12 @@ var Chameleon = (function () {
             else {
                 _this._state = 1 /* Draw */;
                 _this._useDrawingTexture();
-                var mousePosition = _this._computeMousePositionInDrawingCanvas(event);
-                _this._drawingCanvasContext.moveTo(mousePosition.x, mousePosition.y);
+                var pos_face = _this._computeMousePositionInDrawingCanvas(event);
+                _this._drawingCanvasContext.moveTo(pos_face.pos.x, pos_face.pos.y);
                 _this._drawingCanvasContext.strokeStyle = '#ff0000';
+                _this._drawingCanvasContext.stroke();
                 _this._drawingMaterial.map.needsUpdate = true;
+                _this._recordAffectedFace(pos_face.face);
             }
             document.addEventListener('mousemove', _this._mousemove, false);
             document.addEventListener('mouseup', _this._mouseup, false);
@@ -197,10 +198,11 @@ var Chameleon = (function () {
                     _this._panEnd.copy(_this._getMousePositionInCanvas(event, true));
                     break;
                 case 1 /* Draw */:
-                    var mousePosition = _this._computeMousePositionInDrawingCanvas(event);
-                    _this._drawingCanvasContext.lineTo(mousePosition.x, mousePosition.y);
+                    var pos_face = _this._computeMousePositionInDrawingCanvas(event);
+                    _this._drawingCanvasContext.lineTo(pos_face.pos.x, pos_face.pos.y);
                     _this._drawingCanvasContext.stroke();
                     _this._drawingMaterial.map.needsUpdate = true;
+                    _this._recordAffectedFace(pos_face.face);
                     break;
                 default:
                     debugger;
@@ -211,7 +213,9 @@ var Chameleon = (function () {
             event.stopPropagation();
             _this.update();
             if (_this._state == 1 /* Draw */) {
+                // Some debugging code
                 Chameleon._showCanvasInNewWindow(_this._drawingCanvas);
+                console.log(_this._affectedFaces.subarray(0, _this._nAffectedFaces));
             }
             _this._state = 0 /* Idle */;
             document.removeEventListener('mousemove', _this._mousemove);
@@ -252,6 +256,8 @@ var Chameleon = (function () {
         }
         this._nAffectedFaces = 0;
         this._affectedFaces = new Uint32Array(this._geometry.faces.length);
+        this._isFaceAffected = new Uint8Array(this._geometry.faces.length);
+        this._affectedFacesEmpty = new Uint8Array(this._geometry.faces.length);
         var initializeViewingTexture = function () {
             var singlePixelCanvas = document.createElement('canvas');
             singlePixelCanvas.width = singlePixelCanvas.height = 1;
@@ -338,6 +344,8 @@ var Chameleon = (function () {
         if (this._usingViewingTexture) {
             return;
         }
+        this._nAffectedFaces = 0;
+        this._isFaceAffected.set(this._affectedFacesEmpty);
         // TODO update viewing texture from drawing texture
         console.log('Preparing viewing texture...');
         this._mesh.material = this._viewingMaterial;
@@ -374,6 +382,13 @@ var Chameleon = (function () {
         var canvasPos = this._getMousePositionInCanvas(event, true);
         var mouse3d = new THREE.Vector3(canvasPos.x * 2 - 1, -canvasPos.y * 2 + 1, Chameleon.CAMERA_NEAR).unproject(this._camera).sub(this._camera.position).normalize();
         return new THREE.Raycaster(this._camera.position, mouse3d, Chameleon.CAMERA_NEAR).intersectObject(this._mesh);
+    };
+    Chameleon.prototype._recordAffectedFace = function (faceIndex) {
+        if (faceIndex >= 0 && !this._isFaceAffected[faceIndex]) {
+            this._affectedFaces[this._nAffectedFaces] = faceIndex;
+            this._isFaceAffected[faceIndex] = 1;
+            this._nAffectedFaces += 1;
+        }
     };
     Chameleon.CAMERA_NEAR = 0.5;
     return Chameleon;
