@@ -15,7 +15,7 @@ var Chameleon = (function () {
         this._mesh = new THREE.Mesh();
         this._headLight = new THREE.PointLight(0xFFFFFF, 0.4);
         this._camera = (function () {
-            var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+            var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, Chameleon.CAMERA_NEAR, 10000);
             camera.position.z = 5;
             return camera;
         })();
@@ -65,9 +65,9 @@ var Chameleon = (function () {
         this._nAffectedFaces = 0;
         this._getMousePositionInCanvas = (function () {
             var vector = new THREE.Vector2();
-            return function (pageX, pageY, normalize) {
+            return function (event, normalize) {
                 if (normalize === void 0) { normalize = false; }
-                vector.set(pageX - _this.canvasBox.left, pageY - _this.canvasBox.top);
+                vector.set(event.pageX - _this.canvasBox.left, event.pageY - _this.canvasBox.top);
                 if (normalize) {
                     vector.x /= _this.canvas.width;
                     vector.y /= _this.canvas.height;
@@ -79,8 +79,8 @@ var Chameleon = (function () {
             var vector = new THREE.Vector3();
             var objectUp = new THREE.Vector3();
             var mouseOnBall = new THREE.Vector3();
-            return function (pageX, pageY) {
-                mouseOnBall.set((pageX - _this.canvasBox.width * 0.5 - _this.canvasBox.left) / (_this.canvasBox.width * .5), (_this.canvasBox.height * 0.5 + _this.canvasBox.top - pageY) / (_this.canvasBox.height * .5), 0.0);
+            return function (event) {
+                mouseOnBall.set((event.pageX - _this.canvasBox.width * 0.5 - _this.canvasBox.left) / (_this.canvasBox.width * .5), (_this.canvasBox.height * 0.5 + _this.canvasBox.top - event.pageY) / (_this.canvasBox.height * .5), 0.0);
                 var length = mouseOnBall.length();
                 if (length > 1.0) {
                     mouseOnBall.normalize();
@@ -123,6 +123,31 @@ var Chameleon = (function () {
                 }
             };
         })();
+        this._computeMousePositionInDrawingCanvas = (function () {
+            var barycoord = new THREE.Vector3();
+            var baryCoordXYZ = new Float32Array(3);
+            var uv = new THREE.Vector2();
+            return function (event) {
+                var intersections = _this._castRayFromMouse(event);
+                if (intersections.length == 0) {
+                    debugger;
+                    return _this._getMousePositionInCanvas(event);
+                }
+                var face = intersections[0].face;
+                THREE.Triangle.barycoordFromPoint(intersections[0].point, _this._geometry.vertices[face.a], _this._geometry.vertices[face.b], _this._geometry.vertices[face.c], barycoord);
+                barycoord.toArray(baryCoordXYZ);
+                var result = new THREE.Vector2();
+                console.assert(face.index === 0 || face.index, 'Face index should have been set up in the constructor');
+                for (var i = 0; i < 3; i += 1) {
+                    uv.copy(_this._drawingTextureUvs[face.index][i]).multiplyScalar(baryCoordXYZ[i]);
+                    result.add(uv);
+                }
+                result.x *= _this._drawingCanvas.width;
+                result.y = (1 - result.y) * _this._drawingCanvas.height; // why 1-??
+                result.round();
+                return result;
+            };
+        })();
         this._mousedown = function (event) {
             event.preventDefault();
             event.stopPropagation();
@@ -135,12 +160,12 @@ var Chameleon = (function () {
                 switch (event.button) {
                     case 0:
                         _this._state = 3 /* Rotate */;
-                        _this._rotateStart.copy(_this._getMouseProjectionOnBall(event.pageX, event.pageY));
+                        _this._rotateStart.copy(_this._getMouseProjectionOnBall(event));
                         _this._rotateEnd.copy(_this._rotateStart);
                         break;
                     case 2:
                         _this._state = 2 /* Pan */;
-                        _this._panStart.copy(_this._getMousePositionInCanvas(event.pageX, event.pageY, true));
+                        _this._panStart.copy(_this._getMousePositionInCanvas(event, true));
                         _this._panEnd.copy(_this._panStart);
                         break;
                     default:
@@ -150,7 +175,7 @@ var Chameleon = (function () {
             else {
                 _this._state = 1 /* Draw */;
                 _this._useDrawingTexture();
-                var mousePosition = _this._getMousePositionInCanvas(event.pageX, event.pageY);
+                var mousePosition = _this._computeMousePositionInDrawingCanvas(event);
                 _this._drawingCanvasContext.moveTo(mousePosition.x, mousePosition.y);
                 _this._drawingCanvasContext.strokeStyle = '#ff0000';
                 _this._drawingMaterial.map.needsUpdate = true;
@@ -166,13 +191,13 @@ var Chameleon = (function () {
             event.stopPropagation();
             switch (_this._state) {
                 case 3 /* Rotate */:
-                    _this._rotateEnd.copy(_this._getMouseProjectionOnBall(event.pageX, event.pageY));
+                    _this._rotateEnd.copy(_this._getMouseProjectionOnBall(event));
                     break;
                 case 2 /* Pan */:
-                    _this._panEnd.copy(_this._getMousePositionInCanvas(event.pageX, event.pageY, true));
+                    _this._panEnd.copy(_this._getMousePositionInCanvas(event, true));
                     break;
                 case 1 /* Draw */:
-                    var mousePosition = _this._getMousePositionInCanvas(event.pageX, event.pageY);
+                    var mousePosition = _this._computeMousePositionInDrawingCanvas(event);
                     _this._drawingCanvasContext.lineTo(mousePosition.x, mousePosition.y);
                     _this._drawingCanvasContext.stroke();
                     _this._drawingMaterial.map.needsUpdate = true;
@@ -209,6 +234,10 @@ var Chameleon = (function () {
             _this._zoomStart += delta * 0.01;
         };
         this._geometry = geometry.clone();
+        for (var i = 0; i < this._geometry.faces.length; i += 1) {
+            var face = this._geometry.faces[i];
+            face.index = i;
+        }
         if (!canvas) {
             canvas = document.createElement('canvas');
         }
@@ -324,7 +353,7 @@ var Chameleon = (function () {
         this._renderer.render(this._drawingTextureScene, this._camera);
         this._drawingCanvas.width = this._renderer.domElement.width;
         this._drawingCanvas.height = this._renderer.domElement.height;
-        this._drawingCanvas.getContext('2d').drawImage(this._renderer.domElement, 0, 0);
+        this._drawingCanvasContext.drawImage(this._renderer.domElement, 0, 0);
         this._drawingMaterial.map.needsUpdate = true;
         for (var i = 0; i < this._geometry.vertices.length; i += 1) {
             this._drawingVertexUvs[i].copy(this._geometry.vertices[i]).project(this._camera);
@@ -341,6 +370,12 @@ var Chameleon = (function () {
         this._geometry.uvsNeedUpdate = true;
         this._usingViewingTexture = false;
     };
+    Chameleon.prototype._castRayFromMouse = function (event) {
+        var canvasPos = this._getMousePositionInCanvas(event, true);
+        var mouse3d = new THREE.Vector3(canvasPos.x * 2 - 1, -canvasPos.y * 2 + 1, Chameleon.CAMERA_NEAR).unproject(this._camera).sub(this._camera.position).normalize();
+        return new THREE.Raycaster(this._camera.position, mouse3d, Chameleon.CAMERA_NEAR).intersectObject(this._mesh);
+    };
+    Chameleon.CAMERA_NEAR = 0.5;
     return Chameleon;
 })();
 /// <reference path="./three.d.ts" />
