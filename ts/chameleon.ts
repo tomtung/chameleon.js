@@ -91,6 +91,8 @@ class Chameleon {
     private _affectedFaces: Uint32Array;
     private _isFaceAffected: Uint8Array; // Used as if it's a boolean array
     private _affectedFacesEmpty: Uint8Array; // Used to clear _isFaceAffected. Should not be modified once initialized.
+    private _nAdjacentFaces: Uint8Array;
+    private _AdjacentFacesList: Uint32Array[];
 
     handleResize() {
         this._renderer.setSize(this.canvas.width, this.canvas.height);
@@ -324,6 +326,96 @@ class Chameleon {
         }
     }
 
+    private _pointCircleCollide(point, circle, r) {
+        if (r === 0) return false;
+        var dx = circle[0] - point[0];
+        var dy = circle[1] - point[1];
+        return dx * dx + dy * dy <= r * r;
+    }
+
+    private _lineCircleCollide(a, b, circle, radius, nearest) {
+        var tmp = [0, 0];
+        //check to see if start or end points lie within circle 
+        if (this._pointCircleCollide(a, circle, radius)) {
+            if (nearest) {
+                nearest[0] = a[0];
+                nearest[1] = a[1];
+            }
+            return true
+        }
+        if (this._pointCircleCollide(b, circle, radius)) {
+            if (nearest) {
+                nearest[0] = b[0];
+                nearest[1] = b[1];
+            }
+            return true
+        }
+
+        var x1 = a[0], y1 = a[1],
+            x2 = b[0], y2 = b[1],
+            cx = circle[0], cy = circle[1];
+
+        //vector d
+        var dx = x2 - x1;
+        var dy = y2 - y1;
+
+        //vector lc
+        var lcx = cx - x1;
+        var lcy = cy - y1;
+
+        //project lc onto d, resulting in vector p
+        var dLen2 = dx * dx + dy * dy; //len2 of d
+        var px = dx;
+        var py = dy;
+        if (dLen2 > 0) {
+            var dp = (lcx * dx + lcy * dy) / dLen2;
+            px *= dp;
+            py *= dp;
+        }
+
+        if (!nearest)
+            nearest = tmp;
+        nearest[0] = x1 + px;
+        nearest[1] = y1 + py;
+
+        //len2 of p
+        var pLen2 = px * px + py * py;
+
+        //check collision
+        return this._pointCircleCollide(nearest, circle, radius)
+            && pLen2 <= dLen2 && (px * dx + py * dy) >= 0;
+    }
+
+    private _recordAffectedFace_Recursive(faceIndex: number, center, radius) {
+        if (faceIndex >= 0 && !this._isFaceAffected[faceIndex]) {
+            var baryCoordXYZ = new Float32Array(3);
+            var barycoord = new THREE.Vector3();
+            THREE.Triangle.barycoordFromPoint(
+                center,
+                this._geometry.vertices[this._geometry.faces[faceIndex].a],
+                this._geometry.vertices[this._geometry.faces[faceIndex].b],
+                this._geometry.vertices[this._geometry.faces[faceIndex].c],
+                barycoord
+                );
+            barycoord.toArray(<any>baryCoordXYZ);
+            var inside = baryCoordXYZ[0] > -1e-6 && baryCoordXYZ[1] > -1e-6 && baryCoordXYZ[2] > -1e-6; 
+            var v1 = this._drawingVertexUvs[this._geometry.faces[faceIndex].a];
+            var v2 = this._drawingVertexUvs[this._geometry.faces[faceIndex].b];
+            var v3 = this._drawingVertexUvs[this._geometry.faces[faceIndex].c];
+            var collide1 = this._lineCircleCollide(v1, v2, center, radius, );
+            var collide2 = this._lineCircleCollide(v2, v3, center, radius, );
+            var collide3 = this._lineCircleCollide(v3, v1, center, radius, );
+            if (inside || collide1 || collide2 || collide3) {
+                this._affectedFaces[this._nAffectedFaces] = faceIndex;
+                this._isFaceAffected[faceIndex] = 1;
+                this._nAffectedFaces += 1;
+                for (var i = 0; i < this._nAdjacentFaces[faceIndex]; i += 1) {
+                    this._recordAffectedFace_Recursive(this._AdjacentFacesList[faceIndex][i], center, radius);
+                }
+            }
+        }
+    }
+
     private _mousedown = (event: MouseEvent) => {
         event.preventDefault();
         event.stopPropagation();
@@ -456,6 +548,28 @@ class Chameleon {
         this._affectedFaces = new Uint32Array(this._geometry.faces.length);
         this._isFaceAffected = new Uint8Array(this._geometry.faces.length);
         this._affectedFacesEmpty = new Uint8Array(this._geometry.faces.length);
+        this._nAdjacentFaces = new Uint8Array(this._geometry.faces.length);
+        this._AdjacentFacesList = new Array(this._geometry.faces.length);
+        for (var i = 0; i < this._geometry.faces.length; i += 1) {
+            this._AdjacentFacesList[i] = new Uint32Array(this._geometry.faces.length);
+        }
+        for (var i = 0; i < this._geometry.faces.length - 1; i += 1) {
+            for (var j = i + 1; i < this._geometry.faces.length; j += 1) {
+                var vi = [this._geometry.faces[i].a, this._geometry.faces[i].b, this._geometry.faces[i].c];
+                var vj = [this._geometry.faces[j].a, this._geometry.faces[j].b, this._geometry.faces[j].c];
+                vi.sort(); vj.sort();
+                var count = 0;
+                if (vi[0] == vj[0]) count += 1;
+                if (vi[1] == vj[1]) count += 1;
+                if (vi[2] == vj[2]) count += 1;
+                if (count == 2) {
+                    this._AdjacentFacesList[i][this._nAdjacentFaces[i]] = j;
+                    this._AdjacentFacesList[j][this._nAdjacentFaces[j]] = i;
+                    this._nAdjacentFaces[i] += 1;
+                    this._nAdjacentFaces[j] += 1;
+                }
+            }
+        }
 
         var initializeViewingTexture = () => {
             var singlePixelCanvas = <HTMLCanvasElement>document.createElement('canvas');
