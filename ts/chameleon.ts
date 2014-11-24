@@ -339,54 +339,48 @@ module Chameleon {
             }
 
             if (this._affectedFaces.length > 0) {
-                var xMax = Number.NEGATIVE_INFINITY,
-                    xMin = Number.POSITIVE_INFINITY,
-                    yMax = Number.NEGATIVE_INFINITY,
-                    yMin = Number.POSITIVE_INFINITY;
+                var uMax = Number.NEGATIVE_INFINITY,
+                    uMin = Number.POSITIVE_INFINITY,
+                    vMax = Number.NEGATIVE_INFINITY,
+                    vMin = Number.POSITIVE_INFINITY;
 
                 this._affectedFaces.forEach((faceIndex) => {
-                    var faceUvs = this._drawingTextureUvs[faceIndex];
-                    xMax = Math.max(xMax, faceUvs[0].x, faceUvs[1].x, faceUvs[2].x);
-                    yMax = Math.max(yMax,
-                        Math.abs(faceUvs[0].y - 1),
-                        Math.abs(faceUvs[1].y - 1),
-                        Math.abs(faceUvs[2].y - 1));
-
-                    xMin = Math.min(xMin, faceUvs[0].x, faceUvs[1].x, faceUvs[2].x);
-                    yMin = Math.min(yMin,
-                        Math.abs(faceUvs[0].y - 1),
-                        Math.abs(faceUvs[1].y - 1),
-                        Math.abs(faceUvs[2].y - 1));
+                    var drawingUvs = this._drawingTextureUvs[faceIndex];
+                    uMax = Math.max(uMax, drawingUvs[0].x, drawingUvs[1].x, drawingUvs[2].x);
+                    uMin = Math.min(uMin, drawingUvs[0].x, drawingUvs[1].x, drawingUvs[2].x);
+                    vMax = Math.max(vMax, drawingUvs[0].y, drawingUvs[1].y, drawingUvs[2].y);
+                    vMin = Math.min(vMin, drawingUvs[0].y, drawingUvs[1].y, drawingUvs[2].y);
                 });
 
-                var txmax = xMax * this._drawingCanvas.width;
-                var txmin = xMin * this._drawingCanvas.width;
-                var tymax = yMax * this._drawingCanvas.height;
-                var tymin = yMin * this._drawingCanvas.height;
+                var xMax = uMax * this._drawingCanvas.width,
+                    xMin = uMin * this._drawingCanvas.width,
+                    yMax = (1 - vMin) * this._drawingCanvas.height,
+                    yMin = (1 - vMax) * this._drawingCanvas.height;
 
-                this._drawingCanvasContext.rect(
-                    xMin * this._drawingCanvas.width, yMin * this._drawingCanvas.height,
-                    xMax * this._drawingCanvas.width, yMax * this._drawingCanvas.height);
+                this._drawingCanvasContext.rect(xMin, yMin, xMax, yMax);
                 this._drawingCanvasContext.clip();
-                var localCanvas = document.createElement('canvas');
-                localCanvas.width = txmax - txmin;
-                localCanvas.height = tymax - tymin;
-                localCanvas.getContext('2d').drawImage(
+                var patchCanvas = <HTMLCanvasElement>document.createElement('canvas');
+                patchCanvas.width = xMax - xMin;
+                patchCanvas.height = yMax - yMin;
+                patchCanvas.getContext('2d').drawImage(
                     this._drawingCanvas,
-                    txmin, tymin, txmax - txmin, tymax - tymin,
-                    0, 0, txmax - txmin, tymax - tymin
+                    xMin, yMin, patchCanvas.width, patchCanvas.height,
+                    0, 0, patchCanvas.width, patchCanvas.height
                 );
 
                 this._affectedFaces.forEach((faceIndex) => {
                     var faceMaterial = <THREE.MeshLambertMaterial>this._viewingMaterial.materials[faceIndex];
-                    faceMaterial.map.image = localCanvas;
+                    faceMaterial.map.image = patchCanvas;
                     faceMaterial.map.needsUpdate = true;
+
+                    var drawingUvs = this._drawingTextureUvs[faceIndex];
+                    var viewingUvs = this._viewingTextureUvs[faceIndex];
                     for (var j = 0; j < 3; j += 1) {
-                        var drawingUV = this._drawingTextureUvs[faceIndex][j];
-                        this._viewingTextureUvs[faceIndex][j].setX(
-                            (drawingUV.x - xMin) * (this._drawingCanvas.width) / (txmax - txmin)
+                        var drawingUV = drawingUvs[j];
+                        viewingUvs[j].setX(
+                            (drawingUV.x - uMin) * (this._drawingCanvas.width) / patchCanvas.width
                         ).setY(
-                            (drawingUV.y - 1 + yMax) * (this._drawingCanvas.height) / (tymax - tymin)
+                            (drawingUV.y - vMin) * (this._drawingCanvas.height) / patchCanvas.height
                         );
                     }
                 });
