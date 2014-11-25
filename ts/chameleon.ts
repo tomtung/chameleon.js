@@ -1,4 +1,6 @@
 module Chameleon {
+    var CAMERA_NEAR = 0.5;
+
     export function create(geometry: THREE.Geometry, canvas?: HTMLCanvasElement) {
         return new Controls(geometry, canvas);
     }
@@ -180,10 +182,8 @@ module Chameleon {
             this._zoomStart += delta * 0.01;
         };
 
-        constructor(
-            public camera: THREE.PerspectiveCamera,
-            public canvasBox: {left: number; top: number; width: number; height: number}
-        ) {
+        constructor(public camera: THREE.PerspectiveCamera,
+                    public canvasBox: {left: number; top: number; width: number; height: number}) {
         }
     }
 
@@ -192,9 +192,9 @@ module Chameleon {
     }
 
     function showCanvasInNewWindow(canvas: HTMLCanvasElement) {
-            var dataURL = canvas.toDataURL("image/png");
-            var newWindow = window.open();
-            newWindow.document.write('<img style="border:1px solid black" src="' + dataURL + '"/>');
+        var dataURL = canvas.toDataURL("image/png");
+        var newWindow = window.open();
+        newWindow.document.write('<img style="border:1px solid black" src="' + dataURL + '"/>');
     }
 
     class AffectedFacesRecorder {
@@ -237,8 +237,257 @@ module Chameleon {
         }
     }
 
+    /**
+     * Manages both the viewing texture and the drawing texture
+     */
+    class TextureManager {
+        private _viewingTextureUvs: THREE.Vector2[][];
+        private _viewingMaterial: THREE.MeshFaceMaterial;
+        private _drawingTextureUvs: THREE.Vector2[][];
+        private _drawingCanvas: HTMLCanvasElement;
+        private _drawingMaterial: THREE.MeshLambertMaterial;
+        private _drawingTextureMesh: THREE.Mesh;
+        private _drawingTextureScene: THREE.Scene;
+        private _drawingVertexUvs: THREE.Vector2[];
+        private _affectedFaces: AffectedFacesRecorder;
+
+        get drawingContext() {
+            return this._drawingCanvas.getContext('2d');
+        }
+
+        get drawingCanvas() {
+            return this._drawingCanvas;
+        }
+
+        initializeViewingTexture(): TextureManager {
+            var singlePixelCanvas = <HTMLCanvasElement>document.createElement('canvas');
+            singlePixelCanvas.width = singlePixelCanvas.height = 1;
+            var context = singlePixelCanvas.getContext('2d');
+            context.fillStyle = '#FFFFFF';
+            context.fillRect(0, 0, 1, 1);
+
+            this._viewingTextureUvs = [];
+            var faces = this.geometry.faces;
+            this._viewingMaterial = new THREE.MeshFaceMaterial();
+            for (var i = 0; i < faces.length; i += 1) {
+                // Set the materialIndex to be the face index
+                // TextureManager requires this special treatment to work
+                faces[i].materialIndex = i;
+                this._viewingTextureUvs.push([
+                    new THREE.Vector2(0.5, 0.5),
+                    new THREE.Vector2(0.5, 0.5),
+                    new THREE.Vector2(0.5, 0.5)
+                ]);
+
+                var lambertMaterial = new THREE.MeshLambertMaterial({map: new THREE.Texture(singlePixelCanvas)});
+                lambertMaterial.map.needsUpdate = true;
+                this._viewingMaterial.materials.push(lambertMaterial);
+            }
+
+            return this;
+        }
+
+        // Depends on the initialization of viewing texture
+        initializeDrawingTexture(): TextureManager {
+            this._drawingVertexUvs = [];
+            for (var i = 0; i < this.geometry.vertices.length; i += 1) {
+                this._drawingVertexUvs.push(new THREE.Vector2());
+            }
+
+            this._drawingTextureUvs = [];
+            var faces = this.geometry.faces;
+            for (var i = 0; i < faces.length; i += 1) {
+                this._drawingTextureUvs.push([
+                    new THREE.Vector2(),
+                    new THREE.Vector2(),
+                    new THREE.Vector2()
+                ]);
+            }
+
+            this._drawingCanvas = document.createElement('canvas');
+            this._drawingMaterial = new THREE.MeshLambertMaterial({
+                map: new THREE.Texture(this._drawingCanvas)
+            });
+            this._drawingTextureMesh = new THREE.Mesh(this.geometry, this._viewingMaterial);
+
+            this._drawingTextureScene = new THREE.Scene();
+            this._drawingTextureScene.add(new THREE.AmbientLight(0xFFFFFF));
+            this._drawingTextureScene.add(this._drawingTextureMesh);
+
+            return this;
+        }
+
+        prepareViewingTexture(): TextureManager {
+            if (this._affectedFaces.length > 0) {
+                var uMax = Number.NEGATIVE_INFINITY,
+                    uMin = Number.POSITIVE_INFINITY,
+                    vMax = Number.NEGATIVE_INFINITY,
+                    vMin = Number.POSITIVE_INFINITY;
+
+                this._affectedFaces.forEach((faceIndex) => {
+                    var drawingUvs = this._drawingTextureUvs[faceIndex];
+                    uMax = Math.max(uMax, drawingUvs[0].x, drawingUvs[1].x, drawingUvs[2].x);
+                    uMin = Math.min(uMin, drawingUvs[0].x, drawingUvs[1].x, drawingUvs[2].x);
+                    vMax = Math.max(vMax, drawingUvs[0].y, drawingUvs[1].y, drawingUvs[2].y);
+                    vMin = Math.min(vMin, drawingUvs[0].y, drawingUvs[1].y, drawingUvs[2].y);
+                });
+
+                var xMax = uMax * this._drawingCanvas.width,
+                    xMin = uMin * this._drawingCanvas.width,
+                    yMax = (1 - vMin) * this._drawingCanvas.height,
+                    yMin = (1 - vMax) * this._drawingCanvas.height;
+
+                this.drawingContext.rect(xMin, yMin, xMax, yMax);
+                this.drawingContext.clip();
+                var patchCanvas = <HTMLCanvasElement>document.createElement('canvas');
+                patchCanvas.width = xMax - xMin;
+                patchCanvas.height = yMax - yMin;
+                patchCanvas.getContext('2d').drawImage(
+                    this._drawingCanvas,
+                    xMin, yMin, patchCanvas.width, patchCanvas.height,
+                    0, 0, patchCanvas.width, patchCanvas.height
+                );
+
+                this._affectedFaces.forEach((faceIndex) => {
+                    var faceMaterial = <THREE.MeshLambertMaterial>this._viewingMaterial.materials[faceIndex];
+                    faceMaterial.map.image = patchCanvas;
+                    faceMaterial.map.needsUpdate = true;
+
+                    var drawingUvs = this._drawingTextureUvs[faceIndex];
+                    var viewingUvs = this._viewingTextureUvs[faceIndex];
+                    for (var j = 0; j < 3; j += 1) {
+                        var drawingUV = drawingUvs[j];
+                        viewingUvs[j].setX(
+                            (drawingUV.x - uMin) * (this._drawingCanvas.width) / patchCanvas.width
+                        ).setY(
+                            (drawingUV.y - vMin) * (this._drawingCanvas.height) / patchCanvas.height
+                        );
+                    }
+                });
+
+                this._affectedFaces.reset();
+            }
+
+            return this;
+        }
+
+        applyViewingTexture(mesh: THREE.Mesh): TextureManager {
+            mesh.material = this._viewingMaterial;
+            mesh.geometry.faceVertexUvs[0] = this._viewingTextureUvs;
+            mesh.geometry.uvsNeedUpdate = true;
+
+            return this;
+        }
+
+        prepareDrawingTexture(): TextureManager {
+            this.renderer.render(this._drawingTextureScene, this.camera);
+            this._drawingCanvas.width = this.renderer.domElement.width;
+            this._drawingCanvas.height = this.renderer.domElement.height;
+            this.drawingContext.drawImage(this.renderer.domElement, 0, 0);
+            this._drawingMaterial.map.needsUpdate = true;
+
+            var projectedPosition = new THREE.Vector3();
+            for (var i = 0; i < this.geometry.vertices.length; i += 1) {
+                projectedPosition.copy(this.geometry.vertices[i]).project(this.camera);
+                this._drawingVertexUvs[i].setX(
+                    (projectedPosition.x + 1) / 2
+                ).setY(
+                    (projectedPosition.y + 1) / 2
+                );
+            }
+            for (var i = 0; i < this.geometry.faces.length; i += 1) {
+                this._drawingTextureUvs[i][0].copy(this._drawingVertexUvs[this.geometry.faces[i].a]);
+                this._drawingTextureUvs[i][1].copy(this._drawingVertexUvs[this.geometry.faces[i].b]);
+                this._drawingTextureUvs[i][2].copy(this._drawingVertexUvs[this.geometry.faces[i].c]);
+            }
+
+            return this;
+        }
+
+        applyDrawingTexture(mesh: THREE.Mesh): TextureManager {
+            mesh.material = this._drawingMaterial;
+            mesh.geometry.faceVertexUvs[0] = this._drawingTextureUvs;
+            mesh.geometry.uvsNeedUpdate = true;
+
+            return this;
+        }
+
+        private _castRayFromMouse(canvasPos: THREE.Vector2): THREE.Intersection[] {
+            var mouse3d = new THREE.Vector3(
+                canvasPos.x / this._drawingCanvas.width * 2 - 1,
+                -canvasPos.y / this._drawingCanvas.height * 2 + 1,
+                CAMERA_NEAR
+            ).unproject(this.camera).sub(this.camera.position).normalize();
+
+            return new THREE.Raycaster(
+                this.camera.position,
+                mouse3d,
+                CAMERA_NEAR
+            ).intersectObject(this._drawingTextureMesh);
+        }
+
+        public onStrokePainted(canvasPos: THREE.Vector2, radius: number): TextureManager {
+            var intersections = this._castRayFromMouse(canvasPos);
+            if (intersections.length > 0) {
+                this._drawingMaterial.map.needsUpdate = true;
+                var faceIndex = intersections[0].face.materialIndex;
+                this._affectedFaces.add(faceIndex);
+
+                // TODO use radius to find all affected triangles
+
+            }
+
+            return this;
+        }
+
+        // Assumption on geometry: material indices are same to face indices.
+        // This special treatment is implemented in the constructor of Controls
+        constructor(public geometry: THREE.Geometry,
+                    public renderer: THREE.Renderer,
+                    public camera: THREE.Camera) {
+
+            this._affectedFaces = new AffectedFacesRecorder(this.geometry.faces.length);
+            this.initializeViewingTexture().initializeDrawingTexture();
+        }
+    }
+
+    interface Brush {
+        radius: number;
+        startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2);
+        continueStoke(position: THREE.Vector2);
+        finishStroke();
+    }
+
+    class Pencil implements Brush {
+        get radius(): number {
+            return 1;
+        }
+
+        private _canvasContext: CanvasRenderingContext2D = null;
+
+        startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
+
+            this._canvasContext.moveTo(position.x, position.y);
+        }
+
+        continueStoke(position: THREE.Vector2) {
+            if (this._canvasContext) {
+                this._canvasContext.lineTo(position.x, position.y);
+                this._canvasContext.stroke();
+            }
+        }
+
+        finishStroke() {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+            }
+        }
+    }
+
     export class Controls {
-        private static CAMERA_NEAR = 0.5;
 
         private _state: ControlsState = ControlsState.Idle;
 
@@ -259,7 +508,7 @@ module Chameleon {
 
         private _headLight: THREE.PointLight = new THREE.PointLight(0xFFFFFF, 0.4);
         private _camera: THREE.PerspectiveCamera = (() => {
-            var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, Controls.CAMERA_NEAR, 10000);
+            var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, CAMERA_NEAR, 10000);
             camera.position.z = 5;
             return camera;
         })();
@@ -292,27 +541,11 @@ module Chameleon {
             return renderer;
         })();
 
+        brush: Brush = new Pencil();
 
-        private _viewingTextureUvs: THREE.Vector2[][];
-        private _viewingMaterial: THREE.MeshFaceMaterial;
-        private _drawingTextureUvs: THREE.Vector2[][];
-        private _drawingCanvas: HTMLCanvasElement = document.createElement('canvas');
-        private _drawingCanvasContext: CanvasRenderingContext2D = this._drawingCanvas.getContext('2d');
-        private _drawingMaterial: THREE.MeshLambertMaterial =
-            new THREE.MeshLambertMaterial({
-                map: new THREE.Texture(this._drawingCanvas)
-            });
+        private _textureManager: TextureManager;
         private _usingViewingTexture: boolean;
 
-        private _drawingTextureMesh: THREE.Mesh = new THREE.Mesh();
-        private _drawingTextureScene: THREE.Scene = (() => {
-            var scene = new THREE.Scene();
-            scene.add(new THREE.AmbientLight(0xFFFFFF));
-            scene.add(this._drawingTextureMesh);
-            return scene;
-        })();
-
-        private _drawingVertexUvs: THREE.Vector3[];
         handleResize() {
             this._renderer.setSize(this.canvas.width, this.canvas.height);
             this._camera.aspect = this.canvas.width / this.canvas.height;
@@ -322,7 +555,6 @@ module Chameleon {
             this._useViewingTexture();
         }
 
-        private _affectedFaces: AffectedFacesRecorder;
 
         update() {
             this._cameraControls.updateCamera();
@@ -338,59 +570,7 @@ module Chameleon {
                 return;
             }
 
-            if (this._affectedFaces.length > 0) {
-                var uMax = Number.NEGATIVE_INFINITY,
-                    uMin = Number.POSITIVE_INFINITY,
-                    vMax = Number.NEGATIVE_INFINITY,
-                    vMin = Number.POSITIVE_INFINITY;
-
-                this._affectedFaces.forEach((faceIndex) => {
-                    var drawingUvs = this._drawingTextureUvs[faceIndex];
-                    uMax = Math.max(uMax, drawingUvs[0].x, drawingUvs[1].x, drawingUvs[2].x);
-                    uMin = Math.min(uMin, drawingUvs[0].x, drawingUvs[1].x, drawingUvs[2].x);
-                    vMax = Math.max(vMax, drawingUvs[0].y, drawingUvs[1].y, drawingUvs[2].y);
-                    vMin = Math.min(vMin, drawingUvs[0].y, drawingUvs[1].y, drawingUvs[2].y);
-                });
-
-                var xMax = uMax * this._drawingCanvas.width,
-                    xMin = uMin * this._drawingCanvas.width,
-                    yMax = (1 - vMin) * this._drawingCanvas.height,
-                    yMin = (1 - vMax) * this._drawingCanvas.height;
-
-                this._drawingCanvasContext.rect(xMin, yMin, xMax, yMax);
-                this._drawingCanvasContext.clip();
-                var patchCanvas = <HTMLCanvasElement>document.createElement('canvas');
-                patchCanvas.width = xMax - xMin;
-                patchCanvas.height = yMax - yMin;
-                patchCanvas.getContext('2d').drawImage(
-                    this._drawingCanvas,
-                    xMin, yMin, patchCanvas.width, patchCanvas.height,
-                    0, 0, patchCanvas.width, patchCanvas.height
-                );
-
-                this._affectedFaces.forEach((faceIndex) => {
-                    var faceMaterial = <THREE.MeshLambertMaterial>this._viewingMaterial.materials[faceIndex];
-                    faceMaterial.map.image = patchCanvas;
-                    faceMaterial.map.needsUpdate = true;
-
-                    var drawingUvs = this._drawingTextureUvs[faceIndex];
-                    var viewingUvs = this._viewingTextureUvs[faceIndex];
-                    for (var j = 0; j < 3; j += 1) {
-                        var drawingUV = drawingUvs[j];
-                        viewingUvs[j].setX(
-                            (drawingUV.x - uMin) * (this._drawingCanvas.width) / patchCanvas.width
-                        ).setY(
-                            (drawingUV.y - vMin) * (this._drawingCanvas.height) / patchCanvas.height
-                        );
-                    }
-                });
-
-                this._affectedFaces.reset();
-            }
-
-            this._mesh.material = this._viewingMaterial;
-            this._geometry.faceVertexUvs[0] = this._viewingTextureUvs;
-            this._geometry.uvsNeedUpdate = true;
+            this._textureManager.prepareViewingTexture().applyViewingTexture(this._mesh);
             this._usingViewingTexture = true;
         }
 
@@ -400,82 +580,9 @@ module Chameleon {
                 return;
             }
 
-            this._renderer.render(this._drawingTextureScene, this._camera);
-            this._drawingCanvas.width = this._renderer.domElement.width;
-            this._drawingCanvas.height = this._renderer.domElement.height;
-            this._drawingCanvasContext.drawImage(this._renderer.domElement, 0, 0);
-            this._drawingMaterial.map.needsUpdate = true;
-
-            for (var i = 0; i < this._geometry.vertices.length; i += 1) {
-                this._drawingVertexUvs[i].copy(this._geometry.vertices[i]).project(this._camera);
-
-                this._drawingVertexUvs[i].x = (this._drawingVertexUvs[i].x + 1) / 2;
-                this._drawingVertexUvs[i].y = (this._drawingVertexUvs[i].y + 1) / 2;
-            }
-            for (var i = 0; i < this._geometry.faces.length; i += 1) {
-                this._drawingTextureUvs[i][0].copy(<any>this._drawingVertexUvs[this._geometry.faces[i].a]);
-                this._drawingTextureUvs[i][1].copy(<any>this._drawingVertexUvs[this._geometry.faces[i].b]);
-                this._drawingTextureUvs[i][2].copy(<any>this._drawingVertexUvs[this._geometry.faces[i].c]);
-            }
-
-            this._mesh.material = this._drawingMaterial;
-            this._geometry.faceVertexUvs[0] = this._drawingTextureUvs;
-            this._geometry.uvsNeedUpdate = true;
+            this._textureManager.prepareDrawingTexture().applyDrawingTexture(this._mesh);
             this._usingViewingTexture = false;
         }
-
-        private _castRayFromMouse(event: MouseEvent): THREE.Intersection[] {
-            var canvasPos = mousePositionInCanvas(event, this.canvasBox, true);
-            var mouse3d = new THREE.Vector3(
-                canvasPos.x * 2 - 1,
-                -canvasPos.y * 2 + 1,
-                Controls.CAMERA_NEAR
-            ).unproject(this._camera).sub(this._camera.position).normalize();
-
-            return new THREE.Raycaster(
-                this._camera.position,
-                mouse3d,
-                Controls.CAMERA_NEAR
-            ).intersectObject(this._mesh);
-        }
-
-        private _computeMousePositionInDrawingCanvas = (() => {
-            var barycoord = new THREE.Vector3();
-            var baryCoordXYZ = new Float32Array(3);
-            var uv = new THREE.Vector2();
-
-            return (event: MouseEvent) => {
-                var intersections = this._castRayFromMouse(event);
-                if (intersections.length == 0) {
-                    return {pos: mousePositionInCanvas(event, this.canvasBox), face: undefined};
-                }
-
-                var face = intersections[0].face;
-                var faceIndex = <number>(<any>face).index;
-
-                THREE.Triangle.barycoordFromPoint(
-                    intersections[0].point,
-                    this._geometry.vertices[face.a],
-                    this._geometry.vertices[face.b],
-                    this._geometry.vertices[face.c],
-                    barycoord
-                );
-                barycoord.toArray(<any>baryCoordXYZ);
-
-                var drawingCanvasPos = new THREE.Vector2();
-                for (var i = 0; i < 3; i += 1) {
-                    uv.copy(
-                        this._drawingTextureUvs[faceIndex][i]
-                    ).multiplyScalar(baryCoordXYZ[i]);
-                    drawingCanvasPos.add(uv);
-                }
-                drawingCanvasPos.x *= this._drawingCanvas.width;
-                drawingCanvasPos.y = (1 - drawingCanvasPos.y) * this._drawingCanvas.height; // why 1-??
-                drawingCanvasPos.round();
-
-                return {pos: drawingCanvasPos, face: faceIndex};
-            }
-        })();
 
         private _mousedown = (event: MouseEvent) => {
             event.preventDefault();
@@ -487,22 +594,16 @@ module Chameleon {
 
             // Hold shift key to rotate and pan
             if (event.shiftKey) {
-                this._useViewingTexture();
                 this._state = ControlsState.View;
+                this._useViewingTexture();
                 this._cameraControls.onMouseDown(event);
             } else {
                 this._state = ControlsState.Draw;
                 this._useDrawingTexture();
 
-                var pos_face = this._computeMousePositionInDrawingCanvas(event);
-                this._drawingCanvasContext.moveTo(pos_face.pos.x, pos_face.pos.y);
-                this._drawingCanvasContext.strokeStyle = '#ff0000';
-                this._drawingCanvasContext.stroke();
-                this._drawingMaterial.map.needsUpdate = true;
-
-                if (pos_face.face !== undefined) {
-                    this._affectedFaces.add(pos_face.face);
-                }
+                var pos = mousePositionInCanvas(event, this.canvasBox);
+                this.brush.startStroke(this._textureManager.drawingCanvas, pos);
+                this._textureManager.onStrokePainted(pos, this.brush.radius);
             }
 
             document.addEventListener('mousemove', this._mousemove, false);
@@ -522,14 +623,9 @@ module Chameleon {
                     this._cameraControls.onMouseMove(event);
                     break;
                 case ControlsState.Draw:
-                    var pos_face = this._computeMousePositionInDrawingCanvas(event);
-                    this._drawingCanvasContext.lineTo(pos_face.pos.x, pos_face.pos.y);
-                    this._drawingCanvasContext.stroke();
-                    this._drawingMaterial.map.needsUpdate = true;
-
-                    if (pos_face.face !== undefined) {
-                        this._affectedFaces.add(pos_face.face);
-                    }
+                    var pos = mousePositionInCanvas(event, this.canvasBox);
+                    this.brush.continueStoke(pos);
+                    this._textureManager.onStrokePainted(pos, this.brush.radius);
                     break;
                 default:
                     debugger;
@@ -540,6 +636,7 @@ module Chameleon {
             event.preventDefault();
             event.stopPropagation();
 
+            this.brush.finishStroke();
             this.update();
             this._cameraControls.onMouseUp(event);
             this._state = ControlsState.Idle;
@@ -562,10 +659,13 @@ module Chameleon {
 
         constructor(geometry: THREE.Geometry, canvas?: HTMLCanvasElement) {
             this._geometry = geometry.clone();
-            for (var i = 0; i < this._geometry.faces.length; i += 1) {
-                var face: any = this._geometry.faces[i];
-                face.index = i;
-            }
+            // Note that a crucial assumption is that this Mesh object will never be transformed (rotated, scaled, or translated)
+            // This is crucial for both TextureManager and CameraControls to work properly
+            this._mesh.geometry = this._geometry;
+
+            this._textureManager = new TextureManager(this._geometry, this._renderer, this._camera);
+            this._textureManager.applyViewingTexture(this._mesh);
+            this._usingViewingTexture = true;
 
             if (!canvas) {
                 canvas = document.createElement('canvas');
@@ -575,59 +675,6 @@ module Chameleon {
             this.canvas.addEventListener('mousedown', this._mousedown, false);
             this.canvas.addEventListener('mousewheel', this._mousewheel, false);
             this.canvas.addEventListener('DOMMouseScroll', this._mousewheel, false); // firefox
-
-            this._drawingVertexUvs = [];
-            for (var i = 0; i < this._geometry.vertices.length; i += 1) {
-                this._drawingVertexUvs.push(new THREE.Vector3());
-            }
-            this._affectedFaces = new AffectedFacesRecorder(this._geometry.faces.length);
-
-            var initializeViewingTexture = () => {
-                var singlePixelCanvas = <HTMLCanvasElement>document.createElement('canvas');
-                singlePixelCanvas.width = singlePixelCanvas.height = 1;
-                var context = singlePixelCanvas.getContext('2d');
-                context.fillStyle = '#FFFFFF';
-                context.fillRect(0, 0, 1, 1);
-
-                this._viewingTextureUvs = [];
-                var faces = this._geometry.faces;
-                this._viewingMaterial = new THREE.MeshFaceMaterial();
-                for (var i = 0; i < faces.length; i += 1) {
-                    faces[i].materialIndex = i;
-                    this._viewingTextureUvs.push([
-                        new THREE.Vector2(0.5, 0.5),
-                        new THREE.Vector2(0.5, 0.5),
-                        new THREE.Vector2(0.5, 0.5)
-                    ]);
-
-                    var lambertMaterial = new THREE.MeshLambertMaterial({map: new THREE.Texture(singlePixelCanvas)});
-                    lambertMaterial.map.needsUpdate = true;
-                    this._viewingMaterial.materials.push(lambertMaterial);
-                }
-            };
-            initializeViewingTexture();
-
-            var initializeDrawingTexture = () => {
-                this._drawingTextureUvs = [];
-                var faces = this._geometry.faces;
-                for (var i = 0; i < faces.length; i += 1) {
-                    this._drawingTextureUvs.push([
-                        new THREE.Vector2(0.5, 0.5),
-                        new THREE.Vector2(0.5, 0.5),
-                        new THREE.Vector2(0.5, 0.5)
-                    ]);
-                }
-            };
-            initializeDrawingTexture();
-
-            this._mesh.geometry = this._geometry;
-            this._mesh.material = this._viewingMaterial;
-            this._geometry.faceVertexUvs[0] = this._viewingTextureUvs;
-            this._geometry.uvsNeedUpdate = true;
-            this._usingViewingTexture = true;
-
-            this._drawingTextureMesh.geometry = this._geometry;
-            this._drawingTextureMesh.material = this._viewingMaterial;
 
             this.handleResize();
             this.update();
