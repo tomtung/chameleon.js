@@ -7,7 +7,7 @@
         return new THREE.CylinderGeometry(1, 1, 2);
     }
 
-    var chameleon = new Chameleon(getGeometry());
+    var chameleon = Chameleon.create(getGeometry());
     document.body.appendChild(chameleon.canvas);
 
     var onresize = () => {
