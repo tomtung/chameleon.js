@@ -17,6 +17,24 @@ var Chameleon;
             return vector;
         };
     })();
+    var mouseProjectionOnBall = (function () {
+        var projGlobal = new THREE.Vector3(), projLocal = new THREE.Vector3();
+        var upFactor = new THREE.Vector3(), eyeFactor = new THREE.Vector3(), sideFactor = new THREE.Vector3();
+        return function (event, canvasBox, up, eye) {
+            projLocal.set((event.pageX - canvasBox.width * 0.5 - canvasBox.left) / (canvasBox.width * .5), (canvasBox.height * 0.5 + canvasBox.top - event.pageY) / (canvasBox.height * .5), 0.0);
+            var lengthSq = projLocal.lengthSq();
+            if (lengthSq > 1.0) {
+                projLocal.normalize();
+            }
+            else {
+                projLocal.z = Math.sqrt(1.0 - lengthSq);
+            }
+            sideFactor.copy(up).cross(eye).setLength(projLocal.x);
+            upFactor.copy(up).setLength(projLocal.y);
+            eyeFactor.copy(eye).setLength(projLocal.z);
+            return projGlobal.copy(sideFactor).add(upFactor).add(eyeFactor);
+        };
+    })();
     var CameraControlsState;
     (function (CameraControlsState) {
         CameraControlsState[CameraControlsState["Idle"] = 0] = "Idle";
@@ -43,26 +61,6 @@ var Chameleon;
             this._zoomEnd = 0;
             this._panStart = new THREE.Vector2();
             this._panEnd = new THREE.Vector2();
-            this._getMouseProjectionOnBall = (function () {
-                var vector = new THREE.Vector3();
-                var objectUp = new THREE.Vector3();
-                var mouseOnBall = new THREE.Vector3();
-                return function (event) {
-                    mouseOnBall.set((event.pageX - _this.canvasBox.width * 0.5 - _this.canvasBox.left) / (_this.canvasBox.width * .5), (_this.canvasBox.height * 0.5 + _this.canvasBox.top - event.pageY) / (_this.canvasBox.height * .5), 0.0);
-                    var length = mouseOnBall.length();
-                    if (length > 1.0) {
-                        mouseOnBall.normalize();
-                    }
-                    else {
-                        mouseOnBall.z = Math.sqrt(1.0 - length * length);
-                    }
-                    _this._eye.subVectors(_this.camera.position, _this._target);
-                    vector.copy(_this.camera.up).setLength(mouseOnBall.y);
-                    vector.add(objectUp.copy(_this.camera.up).cross(_this._eye).setLength(mouseOnBall.x));
-                    vector.add(_this._eye.setLength(mouseOnBall.z));
-                    return vector;
-                };
-            })();
             this.rotateCamera = (function () {
                 var axis = new THREE.Vector3(), quaternion = new THREE.Quaternion();
                 return function () {
@@ -79,12 +77,12 @@ var Chameleon;
                 };
             })();
             this.panCamera = (function () {
-                var mouseChange = new THREE.Vector2(), objectUp = new THREE.Vector3(), pan = new THREE.Vector3();
+                var mouseChange = new THREE.Vector2(), cameraUp = new THREE.Vector3(), pan = new THREE.Vector3();
                 return function () {
                     mouseChange.subVectors(_this._panEnd, _this._panStart);
                     if (mouseChange.lengthSq()) {
                         mouseChange.multiplyScalar(_this._eye.length() * _this.panSpeed);
-                        pan.crossVectors(_this._eye, _this.camera.up).setLength(mouseChange.x).add(objectUp.copy(_this.camera.up).setLength(mouseChange.y));
+                        pan.crossVectors(_this._eye, _this.camera.up).setLength(mouseChange.x).add(cameraUp.copy(_this.camera.up).setLength(mouseChange.y));
                         _this.camera.position.add(pan);
                         _this._target.add(pan);
                         _this._panStart.copy(_this._panEnd);
@@ -95,7 +93,7 @@ var Chameleon;
                 switch (event.button) {
                     case 0:
                         _this._state = 2 /* Rotate */;
-                        _this._rotateStart.copy(_this._getMouseProjectionOnBall(event));
+                        _this._rotateStart.copy(mouseProjectionOnBall(event, _this.canvasBox, _this.camera.up, _this._eye));
                         _this._rotateEnd.copy(_this._rotateStart);
                         break;
                     case 2:
@@ -110,7 +108,7 @@ var Chameleon;
             this.onMouseMove = function (event) {
                 switch (_this._state) {
                     case 2 /* Rotate */:
-                        _this._rotateEnd.copy(_this._getMouseProjectionOnBall(event));
+                        _this._rotateEnd.copy(mouseProjectionOnBall(event, _this.canvasBox, _this.camera.up, _this._eye));
                         break;
                     case 1 /* Pan */:
                         _this._panEnd.copy(_this._getMousePositionInCanvas(event));
@@ -150,6 +148,10 @@ var Chameleon;
             this.panCamera();
             this.camera.position.addVectors(this._target, this._eye);
             this.camera.lookAt(this._target);
+        };
+        PerspectiveCameraControls.prototype.handleResize = function () {
+            this.camera.aspect = this.canvasBox.width / this.canvasBox.height;
+            this.camera.updateProjectionMatrix();
         };
         return PerspectiveCameraControls;
     })();
@@ -392,7 +394,7 @@ var Chameleon;
             this.canvasBox = { left: 0, top: 0, width: 0, height: 0 };
             this._headLight = new THREE.PointLight(0xFFFFFF, 0.4);
             this._camera = (function () {
-                var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, CAMERA_NEAR, 10000);
+                var camera = new THREE.PerspectiveCamera(45, 1, CAMERA_NEAR, 10000);
                 camera.position.z = 5;
                 return camera;
             })();
@@ -505,9 +507,8 @@ var Chameleon;
         };
         Controls.prototype.handleResize = function () {
             this._renderer.setSize(this.canvas.width, this.canvas.height);
-            this._camera.aspect = this.canvas.width / this.canvas.height;
-            this._camera.updateProjectionMatrix();
             this.updateCanvasBox();
+            this._cameraControls.handleResize();
             this._useViewingTexture();
         };
         Controls.prototype.update = function () {

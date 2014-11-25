@@ -9,7 +9,7 @@ module Chameleon {
         var vector = new THREE.Vector2();
         return (event: MouseEvent,
                 canvasBox: {left: number; top: number; width: number; height: number},
-                normalize: boolean = false) => {
+                normalize: boolean = false): THREE.Vector2 => {
             vector.set(
                 event.pageX - canvasBox.left,
                 event.pageY - canvasBox.top
@@ -21,6 +21,41 @@ module Chameleon {
             return vector;
         };
     })();
+
+    var mouseProjectionOnBall = (() => {
+            var projGlobal = new THREE.Vector3(),
+                projLocal = new THREE.Vector3();
+            var upFactor = new THREE.Vector3(),
+                eyeFactor = new THREE.Vector3(),
+                sideFactor = new THREE.Vector3();
+
+            return (
+                event: MouseEvent,
+                canvasBox: {left: number; top: number; width: number; height: number},
+                up: THREE.Vector3,
+                eye: THREE.Vector3
+            ): THREE.Vector3 => {
+                projLocal.set(
+                    ( event.pageX - canvasBox.width * 0.5 - canvasBox.left ) / (canvasBox.width * .5),
+                    ( canvasBox.height * 0.5 + canvasBox.top - event.pageY ) / (canvasBox.height * .5),
+                    0.0
+                );
+
+                var lengthSq = projLocal.lengthSq();
+                if (lengthSq > 1.0) {
+                    projLocal.normalize();
+                } else {
+                    projLocal.z = Math.sqrt(1.0 - lengthSq);
+                }
+
+                sideFactor.copy(up).cross(eye).setLength(projLocal.x);
+                upFactor.copy(up).setLength(projLocal.y);
+                eyeFactor.copy(eye).setLength(projLocal.z);
+
+                return projGlobal.copy(sideFactor).add(upFactor).add(eyeFactor);
+            };
+        })();
+
 
     enum CameraControlsState {
         Idle, Pan, Rotate
@@ -43,35 +78,6 @@ module Chameleon {
         private _zoomEnd: number = 0;
         private _panStart: THREE.Vector2 = new THREE.Vector2();
         private _panEnd: THREE.Vector2 = new THREE.Vector2();
-
-        private _getMouseProjectionOnBall = (() => {
-            var vector = new THREE.Vector3();
-            var objectUp = new THREE.Vector3();
-            var mouseOnBall = new THREE.Vector3();
-
-            return (event: MouseEvent) => {
-                mouseOnBall.set(
-                    ( event.pageX - this.canvasBox.width * 0.5 - this.canvasBox.left ) / (this.canvasBox.width * .5),
-                    ( this.canvasBox.height * 0.5 + this.canvasBox.top - event.pageY ) / (this.canvasBox.height * .5),
-                    0.0
-                );
-                var length = mouseOnBall.length();
-
-                if (length > 1.0) {
-                    mouseOnBall.normalize();
-                } else {
-                    mouseOnBall.z = Math.sqrt(1.0 - length * length);
-                }
-
-                this._eye.subVectors(this.camera.position, this._target);
-
-                vector.copy(this.camera.up).setLength(mouseOnBall.y);
-                vector.add(objectUp.copy(this.camera.up).cross(this._eye).setLength(mouseOnBall.x));
-                vector.add(this._eye.setLength(mouseOnBall.z));
-
-                return vector;
-            };
-        })();
 
         private _getMousePositionInCanvas(event: MouseEvent) {
             return mousePositionInCanvas(event, this.canvasBox, true);
@@ -109,7 +115,7 @@ module Chameleon {
 
         panCamera = (() => {
             var mouseChange = new THREE.Vector2(),
-                objectUp = new THREE.Vector3(),
+                cameraUp = new THREE.Vector3(),
                 pan = new THREE.Vector3();
 
             return () => {
@@ -117,7 +123,7 @@ module Chameleon {
                 if (mouseChange.lengthSq()) {
                     mouseChange.multiplyScalar(this._eye.length() * this.panSpeed);
                     pan.crossVectors(this._eye, this.camera.up).setLength(mouseChange.x).add(
-                        objectUp.copy(this.camera.up).setLength(mouseChange.y)
+                        cameraUp.copy(this.camera.up).setLength(mouseChange.y)
                     );
                     this.camera.position.add(pan);
                     this._target.add(pan);
@@ -141,7 +147,7 @@ module Chameleon {
             switch (event.button) {
                 case 0: // Left button
                     this._state = CameraControlsState.Rotate;
-                    this._rotateStart.copy(this._getMouseProjectionOnBall(event));
+                    this._rotateStart.copy(mouseProjectionOnBall(event, this.canvasBox, this.camera.up, this._eye));
                     this._rotateEnd.copy(this._rotateStart);
                     break;
                 case 2: // Right button
@@ -157,7 +163,7 @@ module Chameleon {
         onMouseMove = (event: MouseEvent) => {
             switch (this._state) {
                 case CameraControlsState.Rotate:
-                    this._rotateEnd.copy(this._getMouseProjectionOnBall(event));
+                    this._rotateEnd.copy(mouseProjectionOnBall(event, this.canvasBox, this.camera.up, this._eye));
                     break;
                 case CameraControlsState.Pan:
                     this._panEnd.copy(this._getMousePositionInCanvas(event));
@@ -181,6 +187,11 @@ module Chameleon {
             }
             this._zoomStart += delta * 0.01;
         };
+
+        handleResize() {
+            this.camera.aspect = this.canvasBox.width / this.canvasBox.height;
+            this.camera.updateProjectionMatrix();
+        }
 
         constructor(public camera: THREE.PerspectiveCamera,
                     public canvasBox: {left: number; top: number; width: number; height: number}) {
@@ -508,7 +519,7 @@ module Chameleon {
 
         private _headLight: THREE.PointLight = new THREE.PointLight(0xFFFFFF, 0.4);
         private _camera: THREE.PerspectiveCamera = (() => {
-            var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, CAMERA_NEAR, 10000);
+            var camera = new THREE.PerspectiveCamera(45, 1, CAMERA_NEAR, 10000);
             camera.position.z = 5;
             return camera;
         })();
@@ -548,10 +559,9 @@ module Chameleon {
 
         handleResize() {
             this._renderer.setSize(this.canvas.width, this.canvas.height);
-            this._camera.aspect = this.canvas.width / this.canvas.height;
-            this._camera.updateProjectionMatrix();
 
             this.updateCanvasBox();
+            this._cameraControls.handleResize();
             this._useViewingTexture();
         }
 
