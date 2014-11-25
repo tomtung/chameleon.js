@@ -451,14 +451,14 @@ module Chameleon {
         }
     }
 
-    interface Brush {
+    export interface Brush {
         radius: number;
         startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2);
         continueStoke(position: THREE.Vector2);
         finishStroke();
     }
 
-    class Pencil implements Brush {
+    export class Pencil implements Brush {
         get radius(): number {
             return 1;
         }

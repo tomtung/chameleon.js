@@ -383,6 +383,7 @@ var Chameleon;
         };
         return Pencil;
     })();
+    Chameleon.Pencil = Pencil;
     var Controls = (function () {
         function Controls(geometry, canvas) {
             var _this = this;
