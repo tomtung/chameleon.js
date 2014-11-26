@@ -261,6 +261,10 @@ module Chameleon {
         private _drawingTextureScene: THREE.Scene;
         private _drawingVertexUvs: THREE.Vector2[];
         private _affectedFaces: AffectedFacesRecorder;
+        private _isFloodFillEmpty: Uint8Array;
+        private _isFloodFill: Uint8Array;
+        private _nAdjacentFaces: Uint8Array;
+        private _AdjacentFacesList: Uint32Array[];
 
         get drawingContext() {
             return this._drawingCanvas.getContext('2d');
@@ -437,15 +441,123 @@ module Chameleon {
             ).intersectObject(this._drawingTextureMesh);
         }
 
+        private _pointCircleCollide(point, circle, r) {
+            if (r === 0) return false;
+            var dx = circle.x - point.x;
+            var dy = circle.y - point.y;
+            return dx * dx + dy * dy <= r * r;
+        }
+
+        private _lineCircleCollide(a, b, circle, radius) {
+            //check to see if start or end points lie within circle 
+            if (this._pointCircleCollide(a, circle, radius)) {
+                return true;
+            }
+
+            if (this._pointCircleCollide(b, circle, radius)) {
+                return true;
+            }
+
+            var x1 = a.x, y1 = a.y,
+                x2 = b.x, y2 = b.y,
+                cx = circle.x, cy = circle.y;
+
+            //vector d
+            var dx = x2 - x1;
+            var dy = y2 - y1;
+
+            //vector lc
+            var lcx = cx - x1;
+            var lcy = cy - y1;
+
+            //project lc onto d, resulting in vector p
+            var dLen2 = dx * dx + dy * dy; //len2 of d
+            var px = dx;
+            var py = dy;
+            if (dLen2 > 0) {
+                var dp = (lcx * dx + lcy * dy) / dLen2;
+                px *= dp;
+                py *= dp;
+            }
+
+            var nearest = [x1 + px, y1 + py];
+
+            //len2 of p
+            var pLen2 = px * px + py * py;
+
+            //check collision
+            return this._pointCircleCollide(nearest, circle, radius)
+                && pLen2 <= dLen2 && (px * dx + py * dy) >= 0;
+        }
+
+        private _pointInTriangle(point, t0, t1, t2) {
+            //compute vectors & dot products
+            var cx = point.x, cy = point.y,
+                v0x = t2.x - t0.x, v0y = t2.y - t0.y,
+                v1x = t1.x - t0.x, v1y = t1.y - t0.y,
+                v2x = cx - t0.x, v2y = cy - t0.y,
+                dot00 = v0x * v0x + v0y * v0y,
+                dot01 = v0x * v1x + v0y * v1y,
+                dot02 = v0x * v2x + v0y * v2y,
+                dot11 = v1x * v1x + v1y * v1y,
+                dot12 = v1x * v2x + v1y * v2y;
+
+            // Compute barycentric coordinates
+            var b = (dot00 * dot11 - dot01 * dot01),
+                inv = b === 0 ? 0 : (1 / b),
+                u = (dot11 * dot02 - dot01 * dot12) * inv,
+                v = (dot00 * dot12 - dot01 * dot02) * inv;
+            return u >= 0 && v >= 0 && (u + v <= 1);
+        }
+
+        private _add_recursive(faceIndex: number, center: THREE.Vector2, radius: number) {
+            if (faceIndex >= 0 && !this._isFloodFill[faceIndex]) {
+                var v1 = new THREE.Vector2();
+                v1.copy(this._drawingTextureUvs[faceIndex][0]);
+                var v2 = new THREE.Vector2();
+                v2.copy(this._drawingTextureUvs[faceIndex][1]);
+                var v3 = new THREE.Vector2();
+                v3.copy(this._drawingTextureUvs[faceIndex][2]);
+                v1.x = v1.x * this._drawingCanvas.width; v1.y = v1.y * this._drawingCanvas.height;
+                v2.x = v2.x * this._drawingCanvas.width; v2.y = v2.y * this._drawingCanvas.height;
+                v3.x = v3.x * this._drawingCanvas.width; v3.y = v3.y * this._drawingCanvas.height;
+
+                var inside = this._pointInTriangle(center, v1, v2, v3);
+                var collide1 = this._lineCircleCollide(v1, v2, center, radius);
+                var collide2 = this._lineCircleCollide(v2, v3, center, radius);
+                var collide3 = this._lineCircleCollide(v3, v1, center, radius);
+                if (inside || collide1 || collide2 || collide3) {
+                    this._isFloodFill[faceIndex] = 1;
+                    this._affectedFaces.add(faceIndex);
+                    for (var i = 0; i < this._nAdjacentFaces[faceIndex]; i += 1) {
+                        var newfaceIndex = this._AdjacentFacesList[faceIndex][i];
+                        var cameradirection = new THREE.Vector3();
+                        cameradirection.copy(this.camera.position);
+                        cameradirection.normalize(); 
+                        if (this.geometry.faces[newfaceIndex].normal.dot(cameradirection) > 0) {
+                            this._add_recursive(newfaceIndex, center, radius);
+                        }
+                    }
+                }
+            }
+        }
+
         public onStrokePainted(canvasPos: THREE.Vector2, radius: number): TextureManager {
             var intersections = this._castRayFromMouse(canvasPos);
             if (intersections.length > 0) {
                 this._drawingMaterial.map.needsUpdate = true;
                 var faceIndex = intersections[0].face.materialIndex;
-                this._affectedFaces.add(faceIndex);
+                //this._affectedFaces.add(faceIndex);
 
+                //debugger;
                 // TODO use radius to find all affected triangles
-
+                //var Pos = canvasPos;
+                //Pos.x = Pos.x / this._drawingCanvas.width;
+                //Pos.y = Pos.y / this._drawingCanvas.height;
+                this._isFloodFill.set(this._isFloodFillEmpty);
+                this._add_recursive(faceIndex, canvasPos, 5 * radius);
+                console.log(this._isFloodFill);
+                console.log(this._affectedFaces);
             }
 
             return this;
@@ -459,6 +571,36 @@ module Chameleon {
 
             this._affectedFaces = new AffectedFacesRecorder(this.geometry.faces.length);
             this.initializeViewingTexture().initializeDrawingTexture();
+
+            this._isFloodFillEmpty = new Uint8Array(this.geometry.faces.length);
+            this._isFloodFill = new Uint8Array(this.geometry.faces.length);
+            this._nAdjacentFaces = new Uint8Array(this.geometry.faces.length);
+            this._AdjacentFacesList = new Array(this.geometry.faces.length);
+            for (var i = 0; i < this.geometry.faces.length; i += 1) {
+                this._AdjacentFacesList[i] = new Uint32Array(this.geometry.faces.length);
+            }
+            for (var i = 0; i < this.geometry.faces.length - 1; i += 1) {
+                for (var j = i + 1; j < this.geometry.faces.length; j += 1) {
+                    var vi = [this.geometry.faces[i].a, this.geometry.faces[i].b, this.geometry.faces[i].c];
+                    var vj = [this.geometry.faces[j].a, this.geometry.faces[j].b, this.geometry.faces[j].c];
+                    var count = 0;
+                    for (var k = 0; k < 3; k++)
+                        for (var l = 0; l < 3; l++)
+                            if (this.geometry.vertices[vi[k]].x == this.geometry.vertices[vj[l]].x &&
+                                this.geometry.vertices[vi[k]].y == this.geometry.vertices[vj[l]].y &&
+                                this.geometry.vertices[vi[k]].z == this.geometry.vertices[vj[l]].z &&
+                                this.geometry.faces[i].normal.dot(this.geometry.faces[j].normal) > 0)
+                                count++;
+                    if (count == 2) {
+                        this._AdjacentFacesList[i][this._nAdjacentFaces[i]] = j;
+                        this._AdjacentFacesList[j][this._nAdjacentFaces[j]] = i;
+                        this._nAdjacentFaces[i] += 1;
+                        this._nAdjacentFaces[j] += 1;
+                    }
+                }
+            }
+            console.log(this._nAdjacentFaces);
+            console.log(this._AdjacentFacesList);
         }
     }
 
@@ -471,15 +613,16 @@ module Chameleon {
 
     export class Pencil implements Brush {
         get radius(): number {
-            return 1;
+            return 50;
         }
 
         private _canvasContext: CanvasRenderingContext2D = null;
 
         startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
             this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.strokeStyle = "#FF0000";
+            this._canvasContext.lineWidth = 50;
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
-
             this._canvasContext.moveTo(position.x, position.y);
         }
 
