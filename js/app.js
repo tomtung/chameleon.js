@@ -1,7 +1,12 @@
+/// <reference path="./three.d.ts" />
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
 var Chameleon;
 (function (Chameleon) {
-    var CAMERA_NEAR = 0.5;
-
     function create(geometry, canvas) {
         return new Controls(geometry, canvas);
     }
@@ -49,17 +54,14 @@ var Chameleon;
         CameraControlsState[CameraControlsState["Rotate"] = 2] = "Rotate";
     })(CameraControlsState || (CameraControlsState = {}));
 
-    /**
-    * A simplification of THREE.TrackballControls from the three.js examples
-    */
-    var PerspectiveCameraControls = (function () {
-        function PerspectiveCameraControls(camera, canvasBox) {
+    var CameraControlsBase = (function () {
+        function CameraControlsBase(camera, canvasBox) {
             var _this = this;
             this.camera = camera;
             this.canvasBox = canvasBox;
             this.rotateSpeed = 1.5;
-            this.zoomSpeed = 1.2;
             this.panSpeed = 0.8;
+            this.zoomSpeed = 1.2;
             this._state = 0 /* Idle */;
             this._eye = new THREE.Vector3();
             this._target = new THREE.Vector3();
@@ -105,7 +107,7 @@ var Chameleon;
                 switch (event.button) {
                     case 0:
                         _this._state = 2 /* Rotate */;
-                        _this._rotateStart.copy(mouseProjectionOnBall(event, _this.canvasBox, _this.camera.up, _this._eye));
+                        _this._rotateStart.copy(_this._getMouseProjectionOnBall(event));
                         _this._rotateEnd.copy(_this._rotateStart);
                         break;
                     case 2:
@@ -120,7 +122,7 @@ var Chameleon;
             this.onMouseMove = function (event) {
                 switch (_this._state) {
                     case 2 /* Rotate */:
-                        _this._rotateEnd.copy(mouseProjectionOnBall(event, _this.canvasBox, _this.camera.up, _this._eye));
+                        _this._rotateEnd.copy(_this._getMouseProjectionOnBall(event));
                         break;
                     case 1 /* Pan */:
                         _this._panEnd.copy(_this._getMousePositionInCanvas(event));
@@ -143,19 +145,19 @@ var Chameleon;
                 _this._zoomStart += delta * 0.01;
             };
         }
-        PerspectiveCameraControls.prototype._getMousePositionInCanvas = function (event) {
+        CameraControlsBase.prototype._getMousePositionInCanvas = function (event) {
             return mousePositionInCanvas(event, this.canvasBox, true);
         };
 
-        PerspectiveCameraControls.prototype.zoomCamera = function () {
-            var factor = 1.0 + (this._zoomEnd - this._zoomStart) * this.zoomSpeed;
-            if (factor !== 1.0 && factor > 0.0) {
-                this._eye.multiplyScalar(factor);
-                this._zoomStart = this._zoomEnd;
-            }
+        CameraControlsBase.prototype._getMouseProjectionOnBall = function (event) {
+            return mouseProjectionOnBall(event, this.canvasBox, this.camera.up, this._eye);
         };
 
-        PerspectiveCameraControls.prototype.updateCamera = function () {
+        CameraControlsBase.prototype.zoomCamera = function () {
+            // To be implemented by subclasses
+        };
+
+        CameraControlsBase.prototype.updateCamera = function () {
             this._eye.subVectors(this.camera.position, this._target);
 
             this.rotateCamera();
@@ -165,13 +167,77 @@ var Chameleon;
             this.camera.position.addVectors(this._target, this._eye);
             this.camera.lookAt(this._target);
         };
+        return CameraControlsBase;
+    })();
+
+    /**
+    * A simplification of THREE.TrackballControls from the three.js examples
+    */
+    var PerspectiveCameraControls = (function (_super) {
+        __extends(PerspectiveCameraControls, _super);
+        function PerspectiveCameraControls(camera, canvasBox) {
+            _super.call(this, camera, canvasBox);
+            this.camera = camera;
+            this.canvasBox = canvasBox;
+        }
+        PerspectiveCameraControls.prototype.zoomCamera = function () {
+            var factor = 1.0 + (this._zoomEnd - this._zoomStart) * this.zoomSpeed;
+            if (factor !== 1.0 && factor > 0.0) {
+                this._eye.multiplyScalar(factor);
+                this._zoomStart = this._zoomEnd;
+            }
+        };
 
         PerspectiveCameraControls.prototype.handleResize = function () {
             this.camera.aspect = this.canvasBox.width / this.canvasBox.height;
             this.camera.updateProjectionMatrix();
         };
         return PerspectiveCameraControls;
-    })();
+    })(CameraControlsBase);
+
+    /**
+    * A simplification of THREE.OrthographicTrackballControls from the three.js examples
+    */
+    var OrthographicCameraControls = (function (_super) {
+        __extends(OrthographicCameraControls, _super);
+        function OrthographicCameraControls(camera, canvasBox) {
+            _super.call(this, camera, canvasBox);
+            this.camera = camera;
+            this.canvasBox = canvasBox;
+            this._center0 = new THREE.Vector2((camera.left + camera.right) / 2, (camera.top + camera.bottom) / 2);
+            this._viewSize = Math.min(this._center0.x - camera.left, camera.right - this._center0.x, this._center0.y - camera.bottom, camera.top - this._center0.y);
+            this.handleResize();
+        }
+        OrthographicCameraControls.prototype.zoomCamera = function () {
+            var factor = 1.0 + (this._zoomEnd - this._zoomStart) * this.zoomSpeed;
+            if (factor !== 1.0 && factor > 0.0) {
+                this.camera.zoom *= factor;
+                this._zoomStart = this._zoomEnd;
+                this.camera.updateProjectionMatrix();
+            }
+        };
+
+        OrthographicCameraControls.prototype.handleResize = function () {
+            if (this.canvasBox.width < this.canvasBox.height) {
+                this.camera.left = this._center0.x - this._viewSize / 2;
+                this.camera.right = this._center0.x + this._viewSize / 2;
+
+                var ratio = this.canvasBox.height / this.canvasBox.width;
+                this.camera.top = this._center0.y + this._viewSize / 2 * ratio;
+                this.camera.bottom = this._center0.y - this._viewSize / 2 * ratio;
+            } else {
+                this.camera.top = this._center0.y + this._viewSize / 2;
+                this.camera.bottom = this._center0.y - this._viewSize / 2;
+
+                var ratio = this.canvasBox.width / this.canvasBox.height;
+                this.camera.left = this._center0.x - this._viewSize / 2 * ratio;
+                this.camera.right = this._center0.x + this._viewSize / 2 * ratio;
+            }
+
+            this.camera.updateProjectionMatrix();
+        };
+        return OrthographicCameraControls;
+    })(CameraControlsBase);
 
     var ControlsState;
     (function (ControlsState) {
@@ -419,9 +485,11 @@ var Chameleon;
         };
 
         TextureManager.prototype._castRayFromMouse = function (canvasPos) {
-            var mouse3d = new THREE.Vector3(canvasPos.x / this._drawingCanvas.width * 2 - 1, -canvasPos.y / this._drawingCanvas.height * 2 + 1, CAMERA_NEAR).unproject(this.camera).sub(this.camera.position).normalize();
+            var mouse3d = new THREE.Vector3(canvasPos.x / this._drawingCanvas.width * 2 - 1, -canvasPos.y / this._drawingCanvas.height * 2 + 1, -10000).unproject(this.camera);
 
-            return new THREE.Raycaster(this.camera.position, mouse3d, CAMERA_NEAR).intersectObject(this._drawingTextureMesh);
+            var direction = new THREE.Vector3(0, 0, -1).transformDirection(this.camera.matrixWorld);
+
+            return new THREE.Raycaster(mouse3d, direction).intersectObject(this._drawingTextureMesh);
         };
 
         TextureManager.prototype._pointCircleCollide = function (point, circle, r) {
@@ -522,11 +590,7 @@ var Chameleon;
                 var faceIndex = intersections[0].face.materialIndex;
 
                 //this._affectedFaces.add(faceIndex);
-                //debugger;
                 // TODO use radius to find all affected triangles
-                //var Pos = canvasPos;
-                //Pos.x = Pos.x / this._drawingCanvas.width;
-                //Pos.y = Pos.y / this._drawingCanvas.height;
                 this._isFloodFill.set(this._isFloodFillEmpty);
                 this._add_recursive(faceIndex, canvasPos, 5 * radius);
                 console.log(this._isFloodFill);
@@ -544,7 +608,7 @@ var Chameleon;
         }
         Object.defineProperty(Pencil.prototype, "radius", {
             get: function () {
-                return 50;
+                return 1;
             },
             enumerable: true,
             configurable: true
@@ -552,9 +616,8 @@ var Chameleon;
 
         Pencil.prototype.startStroke = function (canvas, position) {
             this._canvasContext = canvas.getContext('2d');
-            this._canvasContext.strokeStyle = "#FF0000";
-            this._canvasContext.lineWidth = 50;
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
+
             this._canvasContext.moveTo(position.x, position.y);
         };
 
@@ -582,12 +645,6 @@ var Chameleon;
             this._mesh = new THREE.Mesh();
             this.canvasBox = { left: 0, top: 0, width: 0, height: 0 };
             this._headLight = new THREE.PointLight(0xFFFFFF, 0.4);
-            this._camera = (function () {
-                var camera = new THREE.PerspectiveCamera(45, 1, CAMERA_NEAR, 10000);
-                camera.position.z = 5;
-                return camera;
-            })();
-            this._cameraControls = new PerspectiveCameraControls(this._camera, this.canvasBox);
             this._scene = (function () {
                 var scene = new THREE.Scene();
 
@@ -689,10 +746,6 @@ var Chameleon;
             // This is crucial for both TextureManager and CameraControls to work properly
             this._mesh.geometry = this._geometry;
 
-            this._textureManager = new TextureManager(this._geometry, this._renderer, this._camera);
-            this._textureManager.applyViewingTexture(this._mesh);
-            this._usingViewingTexture = true;
-
             if (!canvas) {
                 canvas = document.createElement('canvas');
             }
@@ -703,6 +756,21 @@ var Chameleon;
             this.canvas.addEventListener('mousedown', this._mousedown, false);
             this.canvas.addEventListener('mousewheel', this._mousewheel, false);
             this.canvas.addEventListener('DOMMouseScroll', this._mousewheel, false); // firefox
+
+            var viewSize = 1;
+            var origin = new THREE.Vector3(0, 0, 0);
+            for (var i = 0; i < this._mesh.geometry.vertices.length; i += 1) {
+                viewSize = Math.max(viewSize, this._mesh.geometry.vertices[i].distanceTo(origin));
+            }
+            viewSize *= 2 * 1.25;
+            this._camera = new THREE.OrthographicCamera(-viewSize, viewSize, viewSize, -viewSize);
+            this._camera.position.z = viewSize * 10;
+
+            this._cameraControls = new OrthographicCameraControls(this._camera, this.canvasBox);
+
+            this._textureManager = new TextureManager(this._geometry, this._renderer, this._camera);
+            this._textureManager.applyViewingTexture(this._mesh);
+            this._usingViewingTexture = true;
 
             this.handleResize();
             this.update();
@@ -718,7 +786,6 @@ var Chameleon;
 
         Controls.prototype.handleResize = function () {
             this._renderer.setSize(this.canvas.width, this.canvas.height);
-
             this.updateCanvasBox();
             this._cameraControls.handleResize();
             this._useViewingTexture();
