@@ -1,14 +1,19 @@
 module Chameleon {
-    var CAMERA_NEAR = 0.5;
-
     export function create(geometry: THREE.Geometry, canvas?: HTMLCanvasElement) {
         return new Controls(geometry, canvas);
+    }
+
+    interface Box {
+        left: number;
+        top: number;
+        width: number;
+        height: number;
     }
 
     var mousePositionInCanvas = (() => {
         var vector = new THREE.Vector2();
         return (event: MouseEvent,
-                canvasBox: {left: number; top: number; width: number; height: number},
+                canvasBox: Box,
                 normalize: boolean = false): THREE.Vector2 => {
             vector.set(
                 event.pageX - canvasBox.left,
@@ -23,64 +28,66 @@ module Chameleon {
     })();
 
     var mouseProjectionOnBall = (() => {
-            var projGlobal = new THREE.Vector3(),
-                projLocal = new THREE.Vector3();
-            var upFactor = new THREE.Vector3(),
-                eyeFactor = new THREE.Vector3(),
-                sideFactor = new THREE.Vector3();
+        var projGlobal = new THREE.Vector3(),
+            projLocal = new THREE.Vector3();
+        var upFactor = new THREE.Vector3(),
+            eyeFactor = new THREE.Vector3(),
+            sideFactor = new THREE.Vector3();
 
-            return (
-                event: MouseEvent,
-                canvasBox: {left: number; top: number; width: number; height: number},
+        return (event: MouseEvent,
+                canvasBox: Box,
                 up: THREE.Vector3,
-                eye: THREE.Vector3
-            ): THREE.Vector3 => {
-                projLocal.set(
-                    ( event.pageX - canvasBox.width * 0.5 - canvasBox.left ) / (canvasBox.width * .5),
-                    ( canvasBox.height * 0.5 + canvasBox.top - event.pageY ) / (canvasBox.height * .5),
-                    0.0
-                );
+                eye: THREE.Vector3): THREE.Vector3 => {
+            projLocal.set(
+                ( event.pageX - canvasBox.width * 0.5 - canvasBox.left ) / (canvasBox.width * .5),
+                ( canvasBox.height * 0.5 + canvasBox.top - event.pageY ) / (canvasBox.height * .5),
+                0.0
+            );
 
-                var lengthSq = projLocal.lengthSq();
-                if (lengthSq > 1.0) {
-                    projLocal.normalize();
-                } else {
-                    projLocal.z = Math.sqrt(1.0 - lengthSq);
-                }
+            var lengthSq = projLocal.lengthSq();
+            if (lengthSq > 1.0) {
+                projLocal.normalize();
+            } else {
+                projLocal.z = Math.sqrt(1.0 - lengthSq);
+            }
 
-                sideFactor.copy(up).cross(eye).setLength(projLocal.x);
-                upFactor.copy(up).setLength(projLocal.y);
-                eyeFactor.copy(eye).setLength(projLocal.z);
+            sideFactor.copy(up).cross(eye).setLength(projLocal.x);
+            upFactor.copy(up).setLength(projLocal.y);
+            eyeFactor.copy(eye).setLength(projLocal.z);
 
-                return projGlobal.copy(sideFactor).add(upFactor).add(eyeFactor);
-            };
-        })();
-
+            return projGlobal.copy(sideFactor).add(upFactor).add(eyeFactor);
+        };
+    })();
 
     enum CameraControlsState {
         Idle, Pan, Rotate
     }
 
-    /**
-     * A simplification of THREE.TrackballControls from the three.js examples
-     */
-    class PerspectiveCameraControls {
+    class CameraControlsBase {
         rotateSpeed: number = 1.5;
-        zoomSpeed: number = 1.2;
         panSpeed: number = 0.8;
+        zoomSpeed: number = 1.2;
 
-        private _state: CameraControlsState = CameraControlsState.Idle;
-        private _eye: THREE.Vector3 = new THREE.Vector3();
-        private _target: THREE.Vector3 = new THREE.Vector3();
-        private _rotateStart: THREE.Vector3 = new THREE.Vector3();
-        private _rotateEnd: THREE.Vector3 = new THREE.Vector3();
-        private _zoomStart: number = 0;
-        private _zoomEnd: number = 0;
-        private _panStart: THREE.Vector2 = new THREE.Vector2();
-        private _panEnd: THREE.Vector2 = new THREE.Vector2();
+        _state: CameraControlsState = CameraControlsState.Idle;
+        _eye: THREE.Vector3 = new THREE.Vector3();
+        _target: THREE.Vector3 = new THREE.Vector3();
+        _rotateStart: THREE.Vector3 = new THREE.Vector3();
+        _rotateEnd: THREE.Vector3 = new THREE.Vector3();
+        _zoomStart: number = 0;
+        _zoomEnd: number = 0;
+        _panStart: THREE.Vector2 = new THREE.Vector2();
+        _panEnd: THREE.Vector2 = new THREE.Vector2();
 
-        private _getMousePositionInCanvas(event: MouseEvent) {
+        _getMousePositionInCanvas(event: MouseEvent) {
             return mousePositionInCanvas(event, this.canvasBox, true);
+        }
+
+        _getMouseProjectionOnBall(event: MouseEvent) {
+            return mouseProjectionOnBall(event, this.canvasBox, this.camera.up, this._eye);
+        }
+
+        constructor(public camera: THREE.Camera,
+                    public canvasBox: Box) {
         }
 
         rotateCamera = (()=> {
@@ -106,11 +113,7 @@ module Chameleon {
         })();
 
         zoomCamera() {
-            var factor = 1.0 + ( this._zoomEnd - this._zoomStart ) * this.zoomSpeed;
-            if (factor !== 1.0 && factor > 0.0) {
-                this._eye.multiplyScalar(factor);
-                this._zoomStart = this._zoomEnd;
-            }
+            // To be implemented by subclasses
         }
 
         panCamera = (() => {
@@ -143,11 +146,12 @@ module Chameleon {
             this.camera.lookAt(this._target);
         }
 
+
         onMouseDown = (event: MouseEvent) => {
             switch (event.button) {
                 case 0: // Left button
                     this._state = CameraControlsState.Rotate;
-                    this._rotateStart.copy(mouseProjectionOnBall(event, this.canvasBox, this.camera.up, this._eye));
+                    this._rotateStart.copy(this._getMouseProjectionOnBall(event));
                     this._rotateEnd.copy(this._rotateStart);
                     break;
                 case 2: // Right button
@@ -163,7 +167,7 @@ module Chameleon {
         onMouseMove = (event: MouseEvent) => {
             switch (this._state) {
                 case CameraControlsState.Rotate:
-                    this._rotateEnd.copy(mouseProjectionOnBall(event, this.canvasBox, this.camera.up, this._eye));
+                    this._rotateEnd.copy(this._getMouseProjectionOnBall(event));
                     break;
                 case CameraControlsState.Pan:
                     this._panEnd.copy(this._getMousePositionInCanvas(event));
@@ -187,6 +191,19 @@ module Chameleon {
             }
             this._zoomStart += delta * 0.01;
         };
+    }
+
+    /**
+     * A simplification of THREE.TrackballControls from the three.js examples
+     */
+    class PerspectiveCameraControls extends CameraControlsBase {
+        zoomCamera() {
+            var factor = 1.0 + ( this._zoomEnd - this._zoomStart ) * this.zoomSpeed;
+            if (factor !== 1.0 && factor > 0.0) {
+                this._eye.multiplyScalar(factor);
+                this._zoomStart = this._zoomEnd;
+            }
+        }
 
         handleResize() {
             this.camera.aspect = this.canvasBox.width / this.canvasBox.height;
@@ -194,7 +211,63 @@ module Chameleon {
         }
 
         constructor(public camera: THREE.PerspectiveCamera,
-                    public canvasBox: {left: number; top: number; width: number; height: number}) {
+                    public canvasBox: Box) {
+            super(camera, canvasBox);
+        }
+    }
+
+    /**
+     * A simplification of THREE.OrthographicTrackballControls from the three.js examples
+     */
+    class OrthographicCameraControls extends CameraControlsBase {
+        private _center0: THREE.Vector2;
+        private _viewSize: number;
+
+        private _zoomFactor: number;
+
+        zoomCamera() {
+            var factor = 1.0 + (this._zoomEnd - this._zoomStart) * this.zoomSpeed;
+            if (factor !== 1.0 && factor > 0.0) {
+                this.camera.zoom *= factor;
+                this._zoomStart = this._zoomEnd;
+                this.camera.updateProjectionMatrix();
+            }
+        }
+
+        handleResize() {
+            if (this.canvasBox.width < this.canvasBox.height) {
+                this.camera.left = this._center0.x - this._viewSize / 2;
+                this.camera.right = this._center0.x + this._viewSize / 2;
+
+                var ratio = this.canvasBox.height / this.canvasBox.width;
+                this.camera.top = this._center0.y + this._viewSize / 2 * ratio;
+                this.camera.bottom = this._center0.y - this._viewSize / 2 * ratio;
+            } else {
+                this.camera.top = this._center0.y + this._viewSize / 2;
+                this.camera.bottom = this._center0.y - this._viewSize / 2;
+
+                var ratio = this.canvasBox.width / this.canvasBox.height;
+                this.camera.left = this._center0.x - this._viewSize / 2 * ratio;
+                this.camera.right = this._center0.x + this._viewSize / 2 * ratio;
+            }
+
+            this.camera.updateProjectionMatrix();
+        }
+
+        constructor(public camera: THREE.OrthographicCamera,
+                    public canvasBox: Box) {
+            super(camera, canvasBox);
+            this._center0 = new THREE.Vector2(
+                (camera.left + camera.right) / 2,
+                (camera.top + camera.bottom) / 2
+            );
+            this._viewSize = Math.min(
+                this._center0.x - camera.left,
+                camera.right - this._center0.x,
+                this._center0.y - camera.bottom,
+                camera.top - this._center0.y
+            );
+            this.handleResize();
         }
     }
 
@@ -427,13 +500,14 @@ module Chameleon {
             var mouse3d = new THREE.Vector3(
                 canvasPos.x / this._drawingCanvas.width * 2 - 1,
                 -canvasPos.y / this._drawingCanvas.height * 2 + 1,
-                CAMERA_NEAR
-            ).unproject(this.camera).sub(this.camera.position).normalize();
+                -10000
+            ).unproject(this.camera);
+
+            var direction = new THREE.Vector3(0, 0, -1).transformDirection(this.camera.matrixWorld);
 
             return new THREE.Raycaster(
-                this.camera.position,
                 mouse3d,
-                CAMERA_NEAR
+                direction
             ).intersectObject(this._drawingTextureMesh);
         }
 
@@ -455,7 +529,7 @@ module Chameleon {
         // This special treatment is implemented in the constructor of Controls
         constructor(public geometry: THREE.Geometry,
                     public renderer: THREE.Renderer,
-                    public camera: THREE.Camera) {
+                    public camera: THREE.OrthographicCamera) {
 
             this._affectedFaces = new AffectedFacesRecorder(this.geometry.faces.length);
             this.initializeViewingTexture().initializeDrawingTexture();
@@ -506,7 +580,7 @@ module Chameleon {
         private _mesh: THREE.Mesh = new THREE.Mesh();
         canvas: HTMLCanvasElement;
 
-        canvasBox = {left: 0, top: 0, width: 0, height: 0};
+        canvasBox: Box = {left: 0, top: 0, width: 0, height: 0};
 
         public updateCanvasBox() {
             var canvasRect = this.canvas.getBoundingClientRect();
@@ -518,12 +592,8 @@ module Chameleon {
         }
 
         private _headLight: THREE.PointLight = new THREE.PointLight(0xFFFFFF, 0.4);
-        private _camera: THREE.PerspectiveCamera = (() => {
-            var camera = new THREE.PerspectiveCamera(45, 1, CAMERA_NEAR, 10000);
-            camera.position.z = 5;
-            return camera;
-        })();
-        private _cameraControls = new PerspectiveCameraControls(this._camera, this.canvasBox);
+        private _camera: THREE.OrthographicCamera;
+        private _cameraControls: OrthographicCameraControls;
 
         private _scene: THREE.Scene = (() => {
             var scene = new THREE.Scene();
@@ -559,7 +629,6 @@ module Chameleon {
 
         handleResize() {
             this._renderer.setSize(this.canvas.width, this.canvas.height);
-
             this.updateCanvasBox();
             this._cameraControls.handleResize();
             this._useViewingTexture();
@@ -673,10 +742,6 @@ module Chameleon {
             // This is crucial for both TextureManager and CameraControls to work properly
             this._mesh.geometry = this._geometry;
 
-            this._textureManager = new TextureManager(this._geometry, this._renderer, this._camera);
-            this._textureManager.applyViewingTexture(this._mesh);
-            this._usingViewingTexture = true;
-
             if (!canvas) {
                 canvas = document.createElement('canvas');
             }
@@ -685,6 +750,24 @@ module Chameleon {
             this.canvas.addEventListener('mousedown', this._mousedown, false);
             this.canvas.addEventListener('mousewheel', this._mousewheel, false);
             this.canvas.addEventListener('DOMMouseScroll', this._mousewheel, false); // firefox
+
+            var viewSize = 1;
+            var origin = new THREE.Vector3(0, 0, 0);
+            for (var i = 0; i < this._mesh.geometry.vertices.length; i += 1) {
+                viewSize = Math.max(
+                    viewSize,
+                    this._mesh.geometry.vertices[i].distanceTo(origin)
+                );
+            }
+            viewSize *= 2 * 1.25;
+            this._camera = new THREE.OrthographicCamera(-viewSize, viewSize, viewSize, -viewSize);
+            this._camera.position.z = viewSize * 10;
+
+            this._cameraControls = new OrthographicCameraControls(this._camera, this.canvasBox);
+
+            this._textureManager = new TextureManager(this._geometry, this._renderer, this._camera);
+            this._textureManager.applyViewingTexture(this._mesh);
+            this._usingViewingTexture = true;
 
             this.handleResize();
             this.update();
