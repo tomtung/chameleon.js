@@ -15,12 +15,12 @@ module Chameleon {
     var mousePositionInCanvas = (() => {
         var vector = new THREE.Vector2();
         return (event: MouseEvent,
-            canvasBox: Box,
-            normalize: boolean = false): THREE.Vector2 => {
+                canvasBox: Box,
+                normalize: boolean = false): THREE.Vector2 => {
             vector.set(
                 event.pageX - canvasBox.left,
                 event.pageY - canvasBox.top
-                );
+            );
             if (normalize) {
                 vector.x /= canvasBox.width;
                 vector.y /= canvasBox.height;
@@ -37,14 +37,14 @@ module Chameleon {
             sideFactor = new THREE.Vector3();
 
         return (event: MouseEvent,
-            canvasBox: Box,
-            up: THREE.Vector3,
-            eye: THREE.Vector3): THREE.Vector3 => {
+                canvasBox: Box,
+                up: THREE.Vector3,
+                eye: THREE.Vector3): THREE.Vector3 => {
             projLocal.set(
                 (event.pageX - canvasBox.width * 0.5 - canvasBox.left) / (canvasBox.width * .5),
                 (canvasBox.height * 0.5 + canvasBox.top - event.pageY) / (canvasBox.height * .5),
                 0.0
-                );
+            );
 
             var lengthSq = projLocal.lengthSq();
             if (lengthSq > 1.0) {
@@ -60,6 +60,27 @@ module Chameleon {
             return projGlobal.copy(sideFactor).add(upFactor).add(eyeFactor);
         };
     })();
+
+    var _brushSize;
+    var _brushType;
+    var _brushColor;
+    var _brushTexture;
+
+    export function changeBrushSize(_size: number) {
+        _brushSize = _size;
+    }
+
+    export function changeBrushType(_type) {
+        _brushType = _type;
+    }
+
+    export function changeBrushColor(_color) {
+        _brushColor = _color;
+    }
+
+    export function changeTextureType(_texture) {
+        _brushTexture = _texture;
+    }
 
     enum CameraControlsState {
         Idle, Pan, Rotate
@@ -89,7 +110,7 @@ module Chameleon {
         }
 
         constructor(public camera: THREE.Camera,
-            public canvasBox: Box) {
+                    public canvasBox: Box) {
         }
 
         rotateCamera = (() => {
@@ -99,7 +120,7 @@ module Chameleon {
             return () => {
                 var angle = Math.acos(
                     this._rotateStart.dot(this._rotateEnd) / this._rotateStart.length() / this._rotateEnd.length()
-                    );
+                );
                 if (angle) {
                     axis.crossVectors(this._rotateStart, this._rotateEnd).normalize();
                     angle *= this.rotateSpeed;
@@ -129,7 +150,7 @@ module Chameleon {
                     mouseChange.multiplyScalar(this._eye.length() * this.panSpeed);
                     pan.crossVectors(this._eye, this.camera.up).setLength(mouseChange.x).add(
                         cameraUp.copy(this.camera.up).setLength(mouseChange.y)
-                        );
+                    );
                     this.camera.position.add(pan);
                     this._target.add(pan);
                     this._panStart.copy(this._panEnd);
@@ -213,7 +234,7 @@ module Chameleon {
         }
 
         constructor(public camera: THREE.PerspectiveCamera,
-            public canvasBox: Box) {
+                    public canvasBox: Box) {
             super(camera, canvasBox);
         }
     }
@@ -257,18 +278,18 @@ module Chameleon {
         }
 
         constructor(public camera: THREE.OrthographicCamera,
-            public canvasBox: Box) {
+                    public canvasBox: Box) {
             super(camera, canvasBox);
             this._center0 = new THREE.Vector2(
                 (camera.left + camera.right) / 2,
                 (camera.top + camera.bottom) / 2
-                );
+            );
             this._viewSize = Math.min(
                 this._center0.x - camera.left,
                 camera.right - this._center0.x,
                 this._center0.y - camera.bottom,
                 camera.top - this._center0.y
-                );
+            );
             this.handleResize();
         }
     }
@@ -369,7 +390,7 @@ module Chameleon {
                     new THREE.Vector2(0.5, 0.5)
                 ]);
 
-                var lambertMaterial = new THREE.MeshLambertMaterial({ map: new THREE.Texture(singlePixelCanvas) });
+                var lambertMaterial = new THREE.MeshLambertMaterial({map: new THREE.Texture(singlePixelCanvas)});
                 lambertMaterial.map.needsUpdate = true;
                 this._viewingMaterial.materials.push(lambertMaterial);
             }
@@ -436,7 +457,7 @@ module Chameleon {
                     this._drawingCanvas,
                     xMin, yMin, patchCanvas.width, patchCanvas.height,
                     0, 0, patchCanvas.width, patchCanvas.height
-                    );
+                );
 
                 this._affectedFaces.forEach((faceIndex) => {
                     var faceMaterial = <THREE.MeshLambertMaterial>this._viewingMaterial.materials[faceIndex];
@@ -449,9 +470,9 @@ module Chameleon {
                         var drawingUV = drawingUvs[j];
                         viewingUvs[j].setX(
                             (drawingUV.x - uMin) * (this._drawingCanvas.width) / patchCanvas.width
-                            ).setY(
+                        ).setY(
                             (drawingUV.y - vMin) * (this._drawingCanvas.height) / patchCanvas.height
-                            );
+                        );
                     }
                 });
 
@@ -481,9 +502,9 @@ module Chameleon {
                 projectedPosition.copy(this.geometry.vertices[i]).project(this.camera);
                 this._drawingVertexUvs[i].setX(
                     (projectedPosition.x + 1) / 2
-                    ).setY(
+                ).setY(
                     (projectedPosition.y + 1) / 2
-                    );
+                );
             }
             for (var i = 0; i < this.geometry.faces.length; i += 1) {
                 this._drawingTextureUvs[i][0].copy(this._drawingVertexUvs[this.geometry.faces[i].a]);
@@ -507,14 +528,14 @@ module Chameleon {
                 canvasPos.x / this._drawingCanvas.width * 2 - 1,
                 -canvasPos.y / this._drawingCanvas.height * 2 + 1,
                 -10000
-                ).unproject(this.camera);
+            ).unproject(this.camera);
 
             var direction = new THREE.Vector3(0, 0, -1).transformDirection(this.camera.matrixWorld);
 
             return new THREE.Raycaster(
                 mouse3d,
                 direction
-                ).intersectObject(this._drawingTextureMesh);
+            ).intersectObject(this._drawingTextureMesh);
         }
 
         private _pointCircleCollide(point, circle, r) {
@@ -594,9 +615,12 @@ module Chameleon {
                 v2.copy(this._drawingTextureUvs[faceIndex][1]);
                 var v3 = new THREE.Vector2();
                 v3.copy(this._drawingTextureUvs[faceIndex][2]);
-                v1.x = v1.x * this._drawingCanvas.width; v1.y = v1.y * this._drawingCanvas.height;
-                v2.x = v2.x * this._drawingCanvas.width; v2.y = v2.y * this._drawingCanvas.height;
-                v3.x = v3.x * this._drawingCanvas.width; v3.y = v3.y * this._drawingCanvas.height;
+                v1.x = v1.x * this._drawingCanvas.width;
+                v1.y = v1.y * this._drawingCanvas.height;
+                v2.x = v2.x * this._drawingCanvas.width;
+                v2.y = v2.y * this._drawingCanvas.height;
+                v3.x = v3.x * this._drawingCanvas.width;
+                v3.y = v3.y * this._drawingCanvas.height;
 
                 var inside = this._pointInTriangle(center, v1, v2, v3);
                 var collide1 = this._lineCircleCollide(v1, v2, center, radius);
@@ -639,8 +663,8 @@ module Chameleon {
         // Assumption on geometry: material indices are same to face indices.
         // This special treatment is implemented in the constructor of Controls
         constructor(public geometry: THREE.Geometry,
-            public renderer: THREE.Renderer,
-            public camera: THREE.OrthographicCamera) {
+                    public renderer: THREE.Renderer,
+                    public camera: THREE.OrthographicCamera) {
 
             this._affectedFaces = new AffectedFacesRecorder(this.geometry.faces.length);
             this.initializeViewingTexture().initializeDrawingTexture();
@@ -713,6 +737,595 @@ module Chameleon {
         }
     }
 
+    export class Pencil1 implements Brush {
+        get radius(): number {
+            return this._pencilSize;
+        }
+
+        private _canvasContext: CanvasRenderingContext2D = null;
+        private _pencilSize;
+        private _pencilColor;
+
+
+        startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.beginPath();
+            this._canvasContext.save(); // Assumption: nobody        else will call this until the stroke is finished
+            this._canvasContext.lineWidth = this._pencilSize;
+            this._canvasContext.strokeStyle = this._pencilColor;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this._canvasContext.moveTo(position.x, position.y);
+        }
+
+        continueStoke(position: THREE.Vector2) {
+            if (this._canvasContext) {
+                this._canvasContext.lineTo(position.x, position.y);
+                this._canvasContext.stroke();
+            }
+        }
+
+        finishStroke() {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+            }
+        }
+
+        constructor() {
+            this._pencilSize = _brushSize;
+            this._pencilColor = _brushColor
+        }
+    }
+
+    export class Pencil2 implements Brush {
+        get radius(): number {
+            return this._pencilSize;
+        }
+
+        private _canvasContext: CanvasRenderingContext2D = null;
+        private _pencilSize;
+        private _pencilColor;
+
+        startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.beginPath();
+            this._canvasContext.save(); // Assumption: nobody        else will call this until the stroke is finished
+
+
+            this._canvasContext.lineWidth = this._pencilSize;
+            this._canvasContext.strokeStyle = this._pencilColor;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this._canvasContext.shadowBlur = this._pencilSize;
+            this._canvasContext.shadowColor = this._pencilColor;
+            this._canvasContext.moveTo(position.x, position.y);
+        }
+
+        continueStoke(position: THREE.Vector2) {
+            if (this._canvasContext) {
+                this._canvasContext.lineTo(position.x, position.y);
+                this._canvasContext.stroke();
+            }
+        }
+
+        finishStroke() {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+            }
+        }
+
+        constructor() {
+            this._pencilSize = _brushSize;
+            this._pencilColor = _brushColor
+        }
+    }
+    export class Pencil3 implements Brush {
+        get radius(): number {
+            return 32;
+        }
+
+        private img = new Image();
+
+
+        private _canvasContext: CanvasRenderingContext2D = null;
+        private _pencilSize;
+
+        distanceBetween(point1, point2) {
+            return Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2));
+        }
+
+        angleBetween(point1, point2) {
+            return Math.atan2(point2.x - point1.x, point2.y - point1.y);
+        }
+
+        private lastPoint;
+
+        startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.beginPath();
+            this._canvasContext.save(); // Assumption: nobody        else will call this until the stroke is finished
+            this.img.src = 'image/brush3.png';
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this.lastPoint = {x: position.x, y: position.y};
+            //this._canvasContext.moveTo(position.x, position.y);
+        }
+
+        continueStoke(position: THREE.Vector2) {
+            if (this._canvasContext) {
+                //this._canvasContext.lineTo(position.x, position.y);
+
+                var currentPoint = {x: position.x, y: position.y};
+                var dist = this.distanceBetween(this.lastPoint, currentPoint);
+                var angle = this.angleBetween(this.lastPoint, currentPoint);
+
+                for (var i = 0; i < dist; i++) {
+                    var x = this.lastPoint.x + (Math.sin(angle) * i) - 25;
+                    var y = this.lastPoint.y + (Math.cos(angle) * i) - 25;
+                    this._canvasContext.drawImage(this.img, x, y);
+                }
+
+                this.lastPoint = currentPoint;
+
+                //this._canvasContext.stroke();
+            }
+        }
+
+        finishStroke() {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+            }
+        }
+
+        constructor() {
+            this._pencilSize = _brushSize;
+        }
+    }
+    export class Pencil4 implements Brush {
+        get radius(): number {
+            return 10;
+        }
+
+        private img = new Image();
+
+
+        private _canvasContext: CanvasRenderingContext2D = null;
+        private _pencilSize;
+
+
+        distanceBetween(point1, point2) {
+            return Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2));
+        }
+
+        angleBetween(point1, point2) {
+            return Math.atan2(point2.x - point1.x, point2.y - point1.y);
+        }
+
+        getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min)) + min;
+        }
+
+        private lastPoint;
+
+        startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.beginPath();
+            this._canvasContext.save(); // Assumption: nobody        else will call this until the stroke is finished
+            this.img.src = 'image/brush3.png';
+            this.img.width = 10;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this.lastPoint = {x: position.x, y: position.y};
+
+        }
+
+        continueStoke(position: THREE.Vector2) {
+            if (this._canvasContext) {
+                //this._canvasContext.lineTo(position.x, position.y);
+
+                var currentPoint = {x: position.x, y: position.y};
+                var dist = this.distanceBetween(this.lastPoint, currentPoint);
+                var angle = this.angleBetween(this.lastPoint, currentPoint);
+
+                for (var i = 0; i < dist; i++) {
+                    var x = this.lastPoint.x + (Math.sin(angle) * i);
+                    var y = this.lastPoint.y + (Math.cos(angle) * i);
+                    this._canvasContext.save();
+                    this._canvasContext.translate(x, y);
+                    this._canvasContext.scale(0.5, 0.5);
+                    this._canvasContext.rotate(Math.PI * 180 / this.getRandomInt(0, 180));
+                    this._canvasContext.drawImage(this.img, 0, 0);
+                    this._canvasContext.restore();
+                }
+
+                this.lastPoint = currentPoint;
+
+                //this._canvasContext.stroke();
+            }
+        }
+
+        finishStroke() {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+            }
+        }
+
+        constructor() {
+            this._pencilSize = _brushSize;
+        }
+    }
+    export class Pencil5 implements Brush {
+        get radius(): number {
+            return 3;
+        }
+
+        private _canvasContext: CanvasRenderingContext2D = null;
+        private _pencilSize = 3;
+        private _pencilColor;
+        private _lastPoint;
+
+
+        startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
+            this._canvasContext = canvas.getContext('2d');
+
+            this._canvasContext.save(); // Assumption: nobody        else will call this until the stroke is finished
+            this._canvasContext.lineWidth = this._pencilSize;
+            this._canvasContext.strokeStyle = this._pencilColor;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this._lastPoint = {x: position.x, y: position.y};
+        }
+
+        continueStoke(position: THREE.Vector2) {
+            if (this._canvasContext) {
+                this._canvasContext.beginPath();
+                this._canvasContext.globalAlpha = 1;
+                this._canvasContext.moveTo(this._lastPoint.x, this._lastPoint.y);
+                this._canvasContext.lineTo(position.x, position.y);
+                this._canvasContext.stroke();
+
+                this._canvasContext.moveTo(this._lastPoint.x - 4, this._lastPoint.y - 4);
+                this._canvasContext.lineTo(position.x - 4, position.y - 4);
+                this._canvasContext.stroke();
+
+                this._canvasContext.moveTo(this._lastPoint.x - 2, this._lastPoint.y - 2);
+                this._canvasContext.lineTo(position.x - 2, position.y - 2);
+                this._canvasContext.stroke();
+
+                this._canvasContext.moveTo(this._lastPoint.x + 2, this._lastPoint.y + 2);
+                this._canvasContext.lineTo(position.x + 2, position.y + 2);
+                this._canvasContext.stroke();
+
+                this._canvasContext.moveTo(this._lastPoint.x + 4, this._lastPoint.y + 4);
+                this._canvasContext.lineTo(position.x + 4, position.y + 4);
+                this._canvasContext.stroke();
+
+                this._lastPoint = {x: position.x, y: position.y};
+            }
+        }
+
+        finishStroke() {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+            }
+        }
+
+        constructor() {
+
+            this._pencilColor = _brushColor;
+        }
+    }
+    export class Pencil6 implements Brush {
+        get radius(): number {
+            return 15;
+        }
+
+        private _canvasContext: CanvasRenderingContext2D = null;
+        private _pencilSize;
+        private _pencilColor;
+        private _points = [];
+        private _radius;
+
+
+        getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min)) + min;
+        }
+
+        startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.save(); // Assumption: nobody        else will call this until the stroke is finished
+
+            this._canvasContext.fillStyle = this._pencilColor;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this._points.push({
+                x: position.x,
+                y: position.y,
+                radius: this.getRandomInt(10, 30),
+                opacity: Math.random()
+            });
+        }
+
+        continueStoke(position: THREE.Vector2) {
+            if (this._canvasContext) {
+
+                this._points.push({
+                    x: position.x,
+                    y: position.y,
+                    radius: this.getRandomInt(5, 20),
+                    opacity: Math.random()
+                });
+
+                this._canvasContext.clearRect(0, 0, 1, 1);
+                for (var i = 0; i < this._points.length; i++) {
+                    this._canvasContext.beginPath();
+                    this._canvasContext.globalAlpha = this._points[i].opacity;
+                    this._canvasContext.arc(
+                        this._points[i].x, this._points[i].y, this._points[i].radius, 30, 270,
+                        false);
+
+                    this._canvasContext.fill();
+                }
+            }
+        }
+
+        finishStroke() {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+                this._points.length = 0;
+            }
+        }
+
+        constructor() {
+            this._pencilSize = _brushSize;
+            this._pencilColor = _brushColor;
+        }
+    }
+    export class Pencil7 implements Brush {
+        get radius(): number {
+            return this._pencilSize;
+        }
+
+        private _canvasContext: CanvasRenderingContext2D = null;
+        private _pencilSize;
+        private _pencilColor;
+        private _points = [];
+
+        drawStar(x, y, angle) {
+            var length = this._pencilSize;
+            this._canvasContext.save();
+            this._canvasContext.translate(x, y);
+            this._canvasContext.beginPath();
+            this._canvasContext.rotate(Math.PI / 180 * angle);
+            for (var i = 5; i--;) {
+                this._canvasContext.lineTo(0, length);
+                this._canvasContext.translate(0, length);
+                this._canvasContext.rotate((Math.PI * 2 / 10));
+                this._canvasContext.lineTo(0, -length);
+                this._canvasContext.translate(0, -length);
+                this._canvasContext.rotate(-(Math.PI * 6 / 10));
+            }
+            this._canvasContext.lineTo(0, length);
+            this._canvasContext.closePath();
+            this._canvasContext.stroke();
+            this._canvasContext.restore();
+        }
+
+        getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min)) + min;
+        }
+
+        startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
+
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.save();
+            this._canvasContext.strokeStyle = this._pencilColor;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+
+        }
+
+        continueStoke(position: THREE.Vector2) {
+            if (this._canvasContext) {
+                this._points.push({x: position.x, y: position.y, angle: this.getRandomInt(0, 180)});
+
+                this._canvasContext.clearRect(0, 0, 1, 1);
+                for (var i = 0; i < this._points.length; i++) {
+                    this.drawStar(this._points[i].x, this._points[i].y, this._points[i].angle);
+                }
+            }
+        }
+
+        finishStroke() {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._points.length = 0;
+                this._canvasContext = null;
+            }
+        }
+
+        constructor() {
+            this._pencilSize = _brushSize;
+            this._pencilColor = _brushColor;
+        }
+    }
+    export class Pencil8 implements Brush {
+        get radius(): number {
+            return this._pencilSize;
+        }
+
+        private _canvasContext: CanvasRenderingContext2D = null;
+        private _pencilSize;
+        private _pencilColor;
+        private _points = [];
+
+        drawStar(options) {
+            var length = this._pencilSize;
+            this._canvasContext.save();
+            this._canvasContext.translate(options.x, options.y);
+            this._canvasContext.beginPath();
+            this._canvasContext.globalAlpha = options.opacity;
+            this._canvasContext.rotate(Math.PI / 180 * options.angle);
+            this._canvasContext.scale(options.scale, options.scale);
+            this._canvasContext.strokeStyle = options.color;
+            this._canvasContext.lineWidth = options.width;
+            for (var i = 5; i--;) {
+                this._canvasContext.lineTo(0, length);
+                this._canvasContext.translate(0, length);
+                this._canvasContext.rotate((Math.PI * 2 / 10));
+                this._canvasContext.lineTo(0, -length);
+                this._canvasContext.translate(0, -length);
+                this._canvasContext.rotate(-(Math.PI * 6 / 10));
+            }
+            this._canvasContext.lineTo(0, length);
+            this._canvasContext.closePath();
+            this._canvasContext.stroke();
+            this._canvasContext.restore();
+        }
+
+        getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min)) + min;
+        }
+
+        addRandomPoint(position) {
+            this._points.push({
+                x: position.x,
+                y: position.y,
+                angle: this.getRandomInt(0, 180),
+                width: this.getRandomInt(1, 10),
+                opacity: Math.random(),
+                scale: this.getRandomInt(1, 20) / 10,
+                color: ('rgb(' + this.getRandomInt(0, 255) + ',' + this.getRandomInt(0, 255) + ',' + this.getRandomInt(0, 255) + ')')
+            });
+        }
+
+        startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
+
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.save();
+
+        }
+
+        continueStoke(position: THREE.Vector2) {
+            if (this._canvasContext) {
+                this.addRandomPoint(position);
+
+                this._canvasContext.clearRect(0, 0, 1, 1);
+                for (var i = 0; i < this._points.length; i++) {
+                    this.drawStar(this._points[i]);
+                }
+            }
+        }
+
+        finishStroke() {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._points.length = 0;
+                this._canvasContext = null;
+            }
+        }
+
+        constructor() {
+            this._pencilSize = _brushSize;
+            this._pencilColor = _brushColor;
+        }
+    }
+    export class Pencil9 implements Brush {
+        get radius(): number {
+            return _brushSize;
+        }
+
+        private img = new Image();
+        private _canvasContext: CanvasRenderingContext2D = null;
+        private _pencilSize;
+        private _pencilTexture;
+        private lastPoint;
+
+        midPointBtw(p1, p2) {
+            return {
+                x: p1.x + (p2.x - p1.x) / 2,
+                y: p1.y + (p2.y - p1.y) / 2
+            };
+        }
+
+        getPattern() {
+            var patternCanvas = document.createElement('canvas'),
+                dotWidth = 400,
+                dotDistance = 200,
+                patternCtx = patternCanvas.getContext('2d');
+
+            patternCanvas.width = patternCanvas.height = dotWidth + dotDistance;
+
+            if (this._pencilTexture == "grass") {
+                this.img.src = 'image/grass_texture.jpg'
+            }
+            if (this._pencilTexture == "metal") {
+                this.img.src = 'image/metal_texture.jpg'
+            }
+            if (this._pencilTexture == "rock") {
+                this.img.src = 'image/rock_texture.jpg'
+            }
+            if (this._pencilTexture == "blackleather") {
+                this.img.src = 'image/blackleather_texture.jpg'
+            }
+
+
+            patternCtx.beginPath();
+            patternCtx.arc(dotWidth, dotWidth, dotWidth, 0, Math.PI * 2, false);
+            patternCtx.closePath();
+            patternCtx.drawImage(this.img, 0, 0);
+            return this._canvasContext.createPattern(patternCanvas, 'repeat');
+        }
+
+        private _points = [];
+
+        startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
+            this._canvasContext = canvas.getContext('2d');
+
+            this._canvasContext.save(); // Assumption: nobody        else will call this until the stroke is finished
+            this._canvasContext.lineWidth = this._pencilSize;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this._canvasContext.strokeStyle = this.getPattern();
+            this.lastPoint = {x: position.x, y: position.y};
+            //this._canvasContext.moveTo(position.x, position.y);
+        }
+
+        continueStoke(position: THREE.Vector2) {
+            if (this._canvasContext) {
+                this._points.push({x: position.x, y: position.y});
+
+                this._canvasContext.clearRect(0, 0, 1, 1);
+
+                var p1 = this._points[0];
+                var p2 = this._points[1];
+
+                this._canvasContext.beginPath();
+                this._canvasContext.moveTo(p1.x, p1.y);
+
+                for (var i = 1, len = this._points.length; i < len; i++) {
+                    var midPoint = this.midPointBtw(p1, p2);
+                    this._canvasContext.quadraticCurveTo(p1.x, p1.y, midPoint.x, midPoint.y);
+                    p1 = this._points[i];
+                    p2 = this._points[i + 1];
+                }
+                this._canvasContext.lineTo(p1.x, p1.y);
+                this._canvasContext.stroke();
+            }
+        }
+
+        finishStroke() {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+                this._points.length = 0;
+            }
+        }
+
+        constructor() {
+            this._pencilSize = _brushSize;
+            this._pencilTexture = _brushTexture;
+        }
+    }
+
     export class Controls {
 
         private _state: ControlsState = ControlsState.Idle;
@@ -721,7 +1334,7 @@ module Chameleon {
         private _mesh: THREE.Mesh = new THREE.Mesh();
         canvas: HTMLCanvasElement;
 
-        canvasBox: Box = { left: 0, top: 0, width: 0, height: 0 };
+        canvasBox: Box = {left: 0, top: 0, width: 0, height: 0};
 
         public updateCanvasBox() {
             var canvasRect = this.canvas.getBoundingClientRect();
@@ -758,12 +1371,13 @@ module Chameleon {
         })();
 
         private _renderer: THREE.Renderer = (() => {
-            var renderer = new THREE.WebGLRenderer({ antialias: true });
+            var renderer = new THREE.WebGLRenderer({antialias: true});
             renderer.setClearColor(0xAAAAAA, 1.0);
             return renderer;
         })();
 
-        brush: Brush = new Pencil();
+        brush: Brush = new Pencil1();
+
 
         private _textureManager: TextureManager;
         private _usingViewingTexture: boolean;
@@ -822,6 +1436,36 @@ module Chameleon {
                 this._useDrawingTexture();
 
                 var pos = mousePositionInCanvas(event, this.canvasBox);
+
+                if (_brushType == "brush1") {
+                    this.brush = new Pencil1();
+                }
+                if (_brushType == "brush2") {
+                    this.brush = new Pencil2();
+                }
+                if (_brushType == "brush3") {
+                    this.brush = new Pencil3();
+                }
+                if (_brushType == "brush4") {
+                    this.brush = new Pencil4();
+                }
+                if (_brushType == "brush5") {
+                    this.brush = new Pencil5();
+                }
+                if (_brushType == "brush6") {
+                    this.brush = new Pencil6();
+                }
+                if (_brushType == "brush7") {
+                    this.brush = new Pencil7();
+                }
+
+                if (_brushType == "brush8") {
+                    this.brush = new Pencil8();
+                }
+                if (_brushType == "brush9") {
+                    this.brush = new Pencil9();
+                }
+
                 this.brush.startStroke(this._textureManager.drawingCanvas, pos);
                 this._textureManager.onStrokePainted(pos, this.brush.radius);
             }
@@ -898,7 +1542,7 @@ module Chameleon {
                 viewSize = Math.max(
                     viewSize,
                     this._mesh.geometry.vertices[i].distanceTo(origin)
-                    );
+                );
             }
             viewSize *= 2 * 1.25;
             this._camera = new THREE.OrthographicCamera(-viewSize, viewSize, viewSize, -viewSize);
