@@ -505,11 +505,11 @@ var Chameleon;
                 var v3 = new THREE.Vector2();
                 v3.copy(this._drawingTextureUvs[faceIndex][2]);
                 v1.x = v1.x * this._drawingCanvas.width;
-                v1.y = v1.y * this._drawingCanvas.height;
+                v1.y = (1 - v1.y) * this._drawingCanvas.height;
                 v2.x = v2.x * this._drawingCanvas.width;
-                v2.y = v2.y * this._drawingCanvas.height;
+                v2.y = (1 - v2.y) * this._drawingCanvas.height;
                 v3.x = v3.x * this._drawingCanvas.width;
-                v3.y = v3.y * this._drawingCanvas.height;
+                v3.y = (1 - v3.y) * this._drawingCanvas.height;
                 var inside = this._pointInTriangle(center, v1, v2, v3);
                 var collide1 = this._lineCircleCollide(v1, v2, center, radius);
                 var collide2 = this._lineCircleCollide(v2, v3, center, radius);
@@ -537,7 +537,7 @@ var Chameleon;
                 //this._affectedFaces.add(faceIndex);
                 // TODO use radius to find all affected triangles
                 this._isFloodFill.set(this._isFloodFillEmpty);
-                this._add_recursive(faceIndex, canvasPos, 5 * radius);
+                this._add_recursive(faceIndex, canvasPos, radius);
                 console.log(this._isFloodFill);
                 console.log(this._affectedFaces);
             }
