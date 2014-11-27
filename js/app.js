@@ -41,6 +41,26 @@ var Chameleon;
             return projGlobal.copy(sideFactor).add(upFactor).add(eyeFactor);
         };
     })();
+    var _brushSize;
+    var _brushType;
+    var _brushColor;
+    var _brushTexture;
+    function changeBrushSize(_size) {
+        _brushSize = _size;
+    }
+    Chameleon.changeBrushSize = changeBrushSize;
+    function changeBrushType(_type) {
+        _brushType = _type;
+    }
+    Chameleon.changeBrushType = changeBrushType;
+    function changeBrushColor(_color) {
+        _brushColor = _color;
+    }
+    Chameleon.changeBrushColor = changeBrushColor;
+    function changeTextureType(_texture) {
+        _brushTexture = _texture;
+    }
+    Chameleon.changeTextureType = changeTextureType;
     var CameraControlsState;
     (function (CameraControlsState) {
         CameraControlsState[CameraControlsState["Idle"] = 0] = "Idle";
@@ -556,6 +576,514 @@ var Chameleon;
         return Pencil;
     })();
     Chameleon.Pencil = Pencil;
+    var Pencil1 = (function () {
+        function Pencil1() {
+            this._canvasContext = null;
+            this._pencilSize = _brushSize;
+            this._pencilColor = _brushColor;
+        }
+        Object.defineProperty(Pencil1.prototype, "radius", {
+            get: function () {
+                return this._pencilSize;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Pencil1.prototype.startStroke = function (canvas, position) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.beginPath();
+            this._canvasContext.save(); // Assumption: nobody        else will call this until the stroke is finished
+            this._canvasContext.lineWidth = this._pencilSize;
+            this._canvasContext.strokeStyle = this._pencilColor;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this._canvasContext.moveTo(position.x, position.y);
+        };
+        Pencil1.prototype.continueStoke = function (position) {
+            if (this._canvasContext) {
+                this._canvasContext.lineTo(position.x, position.y);
+                this._canvasContext.stroke();
+            }
+        };
+        Pencil1.prototype.finishStroke = function () {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+            }
+        };
+        return Pencil1;
+    })();
+    Chameleon.Pencil1 = Pencil1;
+    var Pencil2 = (function () {
+        function Pencil2() {
+            this._canvasContext = null;
+            this._pencilSize = _brushSize;
+            this._pencilColor = _brushColor;
+        }
+        Object.defineProperty(Pencil2.prototype, "radius", {
+            get: function () {
+                return this._pencilSize;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Pencil2.prototype.startStroke = function (canvas, position) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.beginPath();
+            this._canvasContext.save(); // Assumption: nobody        else will call this until the stroke is finished
+            this._canvasContext.lineWidth = this._pencilSize;
+            this._canvasContext.strokeStyle = this._pencilColor;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this._canvasContext.shadowBlur = this._pencilSize;
+            this._canvasContext.shadowColor = this._pencilColor;
+            this._canvasContext.moveTo(position.x, position.y);
+        };
+        Pencil2.prototype.continueStoke = function (position) {
+            if (this._canvasContext) {
+                this._canvasContext.lineTo(position.x, position.y);
+                this._canvasContext.stroke();
+            }
+        };
+        Pencil2.prototype.finishStroke = function () {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+            }
+        };
+        return Pencil2;
+    })();
+    Chameleon.Pencil2 = Pencil2;
+    var Pencil3 = (function () {
+        function Pencil3() {
+            this.img = new Image();
+            this._canvasContext = null;
+            this._pencilSize = _brushSize;
+        }
+        Object.defineProperty(Pencil3.prototype, "radius", {
+            get: function () {
+                return 32;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Pencil3.prototype.distanceBetween = function (point1, point2) {
+            return Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2));
+        };
+        Pencil3.prototype.angleBetween = function (point1, point2) {
+            return Math.atan2(point2.x - point1.x, point2.y - point1.y);
+        };
+        Pencil3.prototype.startStroke = function (canvas, position) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.beginPath();
+            this._canvasContext.save(); // Assumption: nobody        else will call this until the stroke is finished
+            this.img.src = 'image/brush3.png';
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this.lastPoint = { x: position.x, y: position.y };
+            //this._canvasContext.moveTo(position.x, position.y);
+        };
+        Pencil3.prototype.continueStoke = function (position) {
+            if (this._canvasContext) {
+                //this._canvasContext.lineTo(position.x, position.y);
+                var currentPoint = { x: position.x, y: position.y };
+                var dist = this.distanceBetween(this.lastPoint, currentPoint);
+                var angle = this.angleBetween(this.lastPoint, currentPoint);
+                for (var i = 0; i < dist; i++) {
+                    var x = this.lastPoint.x + (Math.sin(angle) * i) - 25;
+                    var y = this.lastPoint.y + (Math.cos(angle) * i) - 25;
+                    this._canvasContext.drawImage(this.img, x, y);
+                }
+                this.lastPoint = currentPoint;
+            }
+        };
+        Pencil3.prototype.finishStroke = function () {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+            }
+        };
+        return Pencil3;
+    })();
+    Chameleon.Pencil3 = Pencil3;
+    var Pencil4 = (function () {
+        function Pencil4() {
+            this.img = new Image();
+            this._canvasContext = null;
+            this._pencilSize = _brushSize;
+        }
+        Object.defineProperty(Pencil4.prototype, "radius", {
+            get: function () {
+                return 10;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Pencil4.prototype.distanceBetween = function (point1, point2) {
+            return Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2));
+        };
+        Pencil4.prototype.angleBetween = function (point1, point2) {
+            return Math.atan2(point2.x - point1.x, point2.y - point1.y);
+        };
+        Pencil4.prototype.getRandomInt = function (min, max) {
+            return Math.floor(Math.random() * (max - min)) + min;
+        };
+        Pencil4.prototype.startStroke = function (canvas, position) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.beginPath();
+            this._canvasContext.save(); // Assumption: nobody        else will call this until the stroke is finished
+            this.img.src = 'image/brush3.png';
+            this.img.width = 10;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this.lastPoint = { x: position.x, y: position.y };
+        };
+        Pencil4.prototype.continueStoke = function (position) {
+            if (this._canvasContext) {
+                //this._canvasContext.lineTo(position.x, position.y);
+                var currentPoint = { x: position.x, y: position.y };
+                var dist = this.distanceBetween(this.lastPoint, currentPoint);
+                var angle = this.angleBetween(this.lastPoint, currentPoint);
+                for (var i = 0; i < dist; i++) {
+                    var x = this.lastPoint.x + (Math.sin(angle) * i);
+                    var y = this.lastPoint.y + (Math.cos(angle) * i);
+                    this._canvasContext.save();
+                    this._canvasContext.translate(x, y);
+                    this._canvasContext.scale(0.5, 0.5);
+                    this._canvasContext.rotate(Math.PI * 180 / this.getRandomInt(0, 180));
+                    this._canvasContext.drawImage(this.img, 0, 0);
+                    this._canvasContext.restore();
+                }
+                this.lastPoint = currentPoint;
+            }
+        };
+        Pencil4.prototype.finishStroke = function () {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+            }
+        };
+        return Pencil4;
+    })();
+    Chameleon.Pencil4 = Pencil4;
+    var Pencil5 = (function () {
+        function Pencil5() {
+            this._canvasContext = null;
+            this._pencilSize = 3;
+            this._pencilColor = _brushColor;
+        }
+        Object.defineProperty(Pencil5.prototype, "radius", {
+            get: function () {
+                return 3;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Pencil5.prototype.startStroke = function (canvas, position) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.save(); // Assumption: nobody        else will call this until the stroke is finished
+            this._canvasContext.lineWidth = this._pencilSize;
+            this._canvasContext.strokeStyle = this._pencilColor;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this._lastPoint = { x: position.x, y: position.y };
+        };
+        Pencil5.prototype.continueStoke = function (position) {
+            if (this._canvasContext) {
+                this._canvasContext.beginPath();
+                this._canvasContext.globalAlpha = 1;
+                this._canvasContext.moveTo(this._lastPoint.x, this._lastPoint.y);
+                this._canvasContext.lineTo(position.x, position.y);
+                this._canvasContext.stroke();
+                this._canvasContext.moveTo(this._lastPoint.x - 4, this._lastPoint.y - 4);
+                this._canvasContext.lineTo(position.x - 4, position.y - 4);
+                this._canvasContext.stroke();
+                this._canvasContext.moveTo(this._lastPoint.x - 2, this._lastPoint.y - 2);
+                this._canvasContext.lineTo(position.x - 2, position.y - 2);
+                this._canvasContext.stroke();
+                this._canvasContext.moveTo(this._lastPoint.x + 2, this._lastPoint.y + 2);
+                this._canvasContext.lineTo(position.x + 2, position.y + 2);
+                this._canvasContext.stroke();
+                this._canvasContext.moveTo(this._lastPoint.x + 4, this._lastPoint.y + 4);
+                this._canvasContext.lineTo(position.x + 4, position.y + 4);
+                this._canvasContext.stroke();
+                this._lastPoint = { x: position.x, y: position.y };
+            }
+        };
+        Pencil5.prototype.finishStroke = function () {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+            }
+        };
+        return Pencil5;
+    })();
+    Chameleon.Pencil5 = Pencil5;
+    var Pencil6 = (function () {
+        function Pencil6() {
+            this._canvasContext = null;
+            this._points = [];
+            this._pencilSize = _brushSize;
+            this._pencilColor = _brushColor;
+        }
+        Object.defineProperty(Pencil6.prototype, "radius", {
+            get: function () {
+                return 15;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Pencil6.prototype.getRandomInt = function (min, max) {
+            return Math.floor(Math.random() * (max - min)) + min;
+        };
+        Pencil6.prototype.startStroke = function (canvas, position) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.save(); // Assumption: nobody        else will call this until the stroke is finished
+            this._canvasContext.fillStyle = this._pencilColor;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this._points.push({
+                x: position.x,
+                y: position.y,
+                radius: this.getRandomInt(10, 30),
+                opacity: Math.random()
+            });
+        };
+        Pencil6.prototype.continueStoke = function (position) {
+            if (this._canvasContext) {
+                this._points.push({
+                    x: position.x,
+                    y: position.y,
+                    radius: this.getRandomInt(5, 20),
+                    opacity: Math.random()
+                });
+                this._canvasContext.clearRect(0, 0, 1, 1);
+                for (var i = 0; i < this._points.length; i++) {
+                    this._canvasContext.beginPath();
+                    this._canvasContext.globalAlpha = this._points[i].opacity;
+                    this._canvasContext.arc(this._points[i].x, this._points[i].y, this._points[i].radius, 30, 270, false);
+                    this._canvasContext.fill();
+                }
+            }
+        };
+        Pencil6.prototype.finishStroke = function () {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+                this._points.length = 0;
+            }
+        };
+        return Pencil6;
+    })();
+    Chameleon.Pencil6 = Pencil6;
+    var Pencil7 = (function () {
+        function Pencil7() {
+            this._canvasContext = null;
+            this._points = [];
+            this._pencilSize = _brushSize;
+            this._pencilColor = _brushColor;
+        }
+        Object.defineProperty(Pencil7.prototype, "radius", {
+            get: function () {
+                return this._pencilSize;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Pencil7.prototype.drawStar = function (x, y, angle) {
+            var length = this._pencilSize;
+            this._canvasContext.save();
+            this._canvasContext.translate(x, y);
+            this._canvasContext.beginPath();
+            this._canvasContext.rotate(Math.PI / 180 * angle);
+            for (var i = 5; i--;) {
+                this._canvasContext.lineTo(0, length);
+                this._canvasContext.translate(0, length);
+                this._canvasContext.rotate((Math.PI * 2 / 10));
+                this._canvasContext.lineTo(0, -length);
+                this._canvasContext.translate(0, -length);
+                this._canvasContext.rotate(-(Math.PI * 6 / 10));
+            }
+            this._canvasContext.lineTo(0, length);
+            this._canvasContext.closePath();
+            this._canvasContext.stroke();
+            this._canvasContext.restore();
+        };
+        Pencil7.prototype.getRandomInt = function (min, max) {
+            return Math.floor(Math.random() * (max - min)) + min;
+        };
+        Pencil7.prototype.startStroke = function (canvas, position) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.save();
+            this._canvasContext.strokeStyle = this._pencilColor;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+        };
+        Pencil7.prototype.continueStoke = function (position) {
+            if (this._canvasContext) {
+                this._points.push({ x: position.x, y: position.y, angle: this.getRandomInt(0, 180) });
+                this._canvasContext.clearRect(0, 0, 1, 1);
+                for (var i = 0; i < this._points.length; i++) {
+                    this.drawStar(this._points[i].x, this._points[i].y, this._points[i].angle);
+                }
+            }
+        };
+        Pencil7.prototype.finishStroke = function () {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._points.length = 0;
+                this._canvasContext = null;
+            }
+        };
+        return Pencil7;
+    })();
+    Chameleon.Pencil7 = Pencil7;
+    var Pencil8 = (function () {
+        function Pencil8() {
+            this._canvasContext = null;
+            this._points = [];
+            this._pencilSize = _brushSize;
+            this._pencilColor = _brushColor;
+        }
+        Object.defineProperty(Pencil8.prototype, "radius", {
+            get: function () {
+                return this._pencilSize;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Pencil8.prototype.drawStar = function (options) {
+            var length = this._pencilSize;
+            this._canvasContext.save();
+            this._canvasContext.translate(options.x, options.y);
+            this._canvasContext.beginPath();
+            this._canvasContext.globalAlpha = options.opacity;
+            this._canvasContext.rotate(Math.PI / 180 * options.angle);
+            this._canvasContext.scale(options.scale, options.scale);
+            this._canvasContext.strokeStyle = options.color;
+            this._canvasContext.lineWidth = options.width;
+            for (var i = 5; i--;) {
+                this._canvasContext.lineTo(0, length);
+                this._canvasContext.translate(0, length);
+                this._canvasContext.rotate((Math.PI * 2 / 10));
+                this._canvasContext.lineTo(0, -length);
+                this._canvasContext.translate(0, -length);
+                this._canvasContext.rotate(-(Math.PI * 6 / 10));
+            }
+            this._canvasContext.lineTo(0, length);
+            this._canvasContext.closePath();
+            this._canvasContext.stroke();
+            this._canvasContext.restore();
+        };
+        Pencil8.prototype.getRandomInt = function (min, max) {
+            return Math.floor(Math.random() * (max - min)) + min;
+        };
+        Pencil8.prototype.addRandomPoint = function (position) {
+            this._points.push({
+                x: position.x,
+                y: position.y,
+                angle: this.getRandomInt(0, 180),
+                width: this.getRandomInt(1, 10),
+                opacity: Math.random(),
+                scale: this.getRandomInt(1, 20) / 10,
+                color: ('rgb(' + this.getRandomInt(0, 255) + ',' + this.getRandomInt(0, 255) + ',' + this.getRandomInt(0, 255) + ')')
+            });
+        };
+        Pencil8.prototype.startStroke = function (canvas, position) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.save();
+        };
+        Pencil8.prototype.continueStoke = function (position) {
+            if (this._canvasContext) {
+                this.addRandomPoint(position);
+                this._canvasContext.clearRect(0, 0, 1, 1);
+                for (var i = 0; i < this._points.length; i++) {
+                    this.drawStar(this._points[i]);
+                }
+            }
+        };
+        Pencil8.prototype.finishStroke = function () {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._points.length = 0;
+                this._canvasContext = null;
+            }
+        };
+        return Pencil8;
+    })();
+    Chameleon.Pencil8 = Pencil8;
+    var Pencil9 = (function () {
+        function Pencil9() {
+            this.img = new Image();
+            this._canvasContext = null;
+            this._points = [];
+            this._pencilSize = _brushSize;
+            this._pencilTexture = _brushTexture;
+        }
+        Object.defineProperty(Pencil9.prototype, "radius", {
+            get: function () {
+                return _brushSize;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Pencil9.prototype.midPointBtw = function (p1, p2) {
+            return {
+                x: p1.x + (p2.x - p1.x) / 2,
+                y: p1.y + (p2.y - p1.y) / 2
+            };
+        };
+        Pencil9.prototype.getPattern = function () {
+            var patternCanvas = document.createElement('canvas'), dotWidth = 400, dotDistance = 200, patternCtx = patternCanvas.getContext('2d');
+            patternCanvas.width = patternCanvas.height = dotWidth + dotDistance;
+            if (this._pencilTexture == "grass") {
+                this.img.src = 'image/grass_texture.jpg';
+            }
+            if (this._pencilTexture == "metal") {
+                this.img.src = 'image/metal_texture.jpg';
+            }
+            if (this._pencilTexture == "rock") {
+                this.img.src = 'image/rock_texture.jpg';
+            }
+            if (this._pencilTexture == "blackleather") {
+                this.img.src = 'image/blackleather_texture.jpg';
+            }
+            patternCtx.beginPath();
+            patternCtx.arc(dotWidth, dotWidth, dotWidth, 0, Math.PI * 2, false);
+            patternCtx.closePath();
+            patternCtx.drawImage(this.img, 0, 0);
+            return this._canvasContext.createPattern(patternCanvas, 'repeat');
+        };
+        Pencil9.prototype.startStroke = function (canvas, position) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.save(); // Assumption: nobody        else will call this until the stroke is finished
+            this._canvasContext.lineWidth = this._pencilSize;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this._canvasContext.strokeStyle = this.getPattern();
+            this.lastPoint = { x: position.x, y: position.y };
+            //this._canvasContext.moveTo(position.x, position.y);
+        };
+        Pencil9.prototype.continueStoke = function (position) {
+            if (this._canvasContext) {
+                this._points.push({ x: position.x, y: position.y });
+                this._canvasContext.clearRect(0, 0, 1, 1);
+                var p1 = this._points[0];
+                var p2 = this._points[1];
+                this._canvasContext.beginPath();
+                this._canvasContext.moveTo(p1.x, p1.y);
+                for (var i = 1, len = this._points.length; i < len; i++) {
+                    var midPoint = this.midPointBtw(p1, p2);
+                    this._canvasContext.quadraticCurveTo(p1.x, p1.y, midPoint.x, midPoint.y);
+                    p1 = this._points[i];
+                    p2 = this._points[i + 1];
+                }
+                this._canvasContext.lineTo(p1.x, p1.y);
+                this._canvasContext.stroke();
+            }
+        };
+        Pencil9.prototype.finishStroke = function () {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+                this._points.length = 0;
+            }
+        };
+        return Pencil9;
+    })();
+    Chameleon.Pencil9 = Pencil9;
     var Controls = (function () {
         function Controls(geometry, canvas) {
             var _this = this;
@@ -582,7 +1110,7 @@ var Chameleon;
                 renderer.setClearColor(0xAAAAAA, 1.0);
                 return renderer;
             })();
-            this.brush = new Pencil();
+            this.brush = new Pencil1();
             this._mousedown = function (event) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -599,6 +1127,33 @@ var Chameleon;
                     _this._state = 1 /* Draw */;
                     _this._useDrawingTexture();
                     var pos = mousePositionInCanvas(event, _this.canvasBox);
+                    if (_brushType == "brush1") {
+                        _this.brush = new Pencil1();
+                    }
+                    if (_brushType == "brush2") {
+                        _this.brush = new Pencil2();
+                    }
+                    if (_brushType == "brush3") {
+                        _this.brush = new Pencil3();
+                    }
+                    if (_brushType == "brush4") {
+                        _this.brush = new Pencil4();
+                    }
+                    if (_brushType == "brush5") {
+                        _this.brush = new Pencil5();
+                    }
+                    if (_brushType == "brush6") {
+                        _this.brush = new Pencil6();
+                    }
+                    if (_brushType == "brush7") {
+                        _this.brush = new Pencil7();
+                    }
+                    if (_brushType == "brush8") {
+                        _this.brush = new Pencil8();
+                    }
+                    if (_brushType == "brush9") {
+                        _this.brush = new Pencil9();
+                    }
                     _this.brush.startStroke(_this._textureManager.drawingCanvas, pos);
                     _this._textureManager.onStrokePainted(pos, _this.brush.radius);
                 }
@@ -726,6 +1281,73 @@ var Chameleon;
     };
     onresize();
     window.addEventListener('resize', onresize, false);
+    window.onload = function () {
+        var _brushGUI = new FizzyText();
+        var _gui = new dat.GUI();
+        var _brushType = _gui.add(_brushGUI, 'brush', ['brush1', 'brush2', 'brush3', 'brush4', 'brush5', 'brush6', 'brush7', 'brush8', 'brush9']);
+        var _reset = _gui.add(_brushGUI, 'reset');
+        var _f1 = _gui.addFolder("BrushSize");
+        var _brushSize = _f1.add(_brushGUI, 'size', 1, 30).min(1).step(0.5);
+        var _f2 = _gui.addFolder("Color");
+        var _brushColor = _f2.addColor(_brushGUI, 'color0');
+        var _f3;
+        var _textureType;
+        Chameleon.changeBrushType("brush1");
+        Chameleon.changeBrushSize(_brushGUI.size);
+        Chameleon.changeBrushColor(_brushGUI.color0);
+        Chameleon.changeTextureType("grass");
+        _f2.open();
+        _f1.open();
+        _brushType.onFinishChange(function (value) {
+            if ((_brushGUI.brush == "brush1" || _brushGUI.brush == "brush2" || _brushGUI.brush == "brush5" || _brushGUI.brush == "brush6" || _brushGUI.brush == "brush7") && !_gui.hasFolder("Color")) {
+                _f2 = _gui.addFolder("Color");
+                _brushColor = _f2.addColor(_brushGUI, 'color0');
+                _f2.open();
+                _brushColor.onChange(function (value) {
+                    Chameleon.changeBrushColor(_brushGUI.color0);
+                });
+            }
+            if ((_brushGUI.brush == "brush1" || _brushGUI.brush == "brush2" || _brushGUI.brush == "brush7" || _brushGUI.brush == "brush8" || _brushGUI.brush == "brush9") && !_gui.hasFolder("BrushSize")) {
+                _f1 = _gui.addFolder("BrushSize");
+                _brushSize = _f1.add(_brushGUI, 'size', 1, 30).min(1).step(0.5);
+                _f1.open();
+                _brushSize.onFinishChange(function (value) {
+                    Chameleon.changeBrushSize(_brushGUI.size);
+                });
+            }
+            if (_brushGUI.brush == "brush9") {
+                _f3 = _gui.addFolder("Texture");
+                _textureType = _f3.add(_brushGUI, 'textureType', ['grass', 'metal', 'rock', 'blackleather']);
+                _f3.open();
+                _textureType.onFinishChange(function (value) {
+                    Chameleon.changeTextureType(_brushGUI.textureType);
+                });
+            }
+            if (_brushGUI.brush == "brush3" || _brushGUI.brush == "brush4" || _brushGUI.brush == "brush8") {
+                _gui.removeFolder("Color");
+                _gui.removeFolder("BrushSize");
+            }
+            if (_brushGUI.brush == "brush5" || _brushGUI.brush == "brush6") {
+                _gui.removeFolder("BrushSize");
+            }
+            if (_brushGUI.brush == "brush9") {
+                _gui.removeFolder("Color");
+            }
+            if (_brushGUI.brush != "brush9") {
+                _gui.removeFolder("Texture");
+            }
+            Chameleon.changeBrushType(_brushGUI.brush);
+        });
+        _brushSize.onFinishChange(function (value) {
+            Chameleon.changeBrushSize(_brushGUI.size);
+        });
+        _brushColor.onChange(function (value) {
+            Chameleon.changeBrushColor(_brushGUI.color0);
+        });
+    };
+    function resetGeometry() {
+    }
+    ;
     // Render loop
     var render = function () {
         chameleon.update();
@@ -733,3 +1355,12 @@ var Chameleon;
     };
     render();
 })();
+var FizzyText = function () {
+    this.brush = 'brush';
+    this.textureType = 'textureType';
+    this.size = 15;
+    this.color0 = "#9b0000";
+    this.reset = function () {
+        this.resetGeometry();
+    };
+};
