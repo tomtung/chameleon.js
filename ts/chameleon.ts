@@ -15,12 +15,12 @@ module Chameleon {
     var mousePositionInCanvas = (() => {
         var vector = new THREE.Vector2();
         return (event: MouseEvent,
-            canvasBox: Box,
-            normalize: boolean = false): THREE.Vector2 => {
+                canvasBox: Box,
+                normalize: boolean = false): THREE.Vector2 => {
             vector.set(
                 event.pageX - canvasBox.left,
                 event.pageY - canvasBox.top
-                );
+            );
             if (normalize) {
                 vector.x /= canvasBox.width;
                 vector.y /= canvasBox.height;
@@ -37,14 +37,14 @@ module Chameleon {
             sideFactor = new THREE.Vector3();
 
         return (event: MouseEvent,
-            canvasBox: Box,
-            up: THREE.Vector3,
-            eye: THREE.Vector3): THREE.Vector3 => {
+                canvasBox: Box,
+                up: THREE.Vector3,
+                eye: THREE.Vector3): THREE.Vector3 => {
             projLocal.set(
                 (event.pageX - canvasBox.width * 0.5 - canvasBox.left) / (canvasBox.width * .5),
                 (canvasBox.height * 0.5 + canvasBox.top - event.pageY) / (canvasBox.height * .5),
                 0.0
-                );
+            );
 
             var lengthSq = projLocal.lengthSq();
             if (lengthSq > 1.0) {
@@ -89,7 +89,7 @@ module Chameleon {
         }
 
         constructor(public camera: THREE.Camera,
-            public canvasBox: Box) {
+                    public canvasBox: Box) {
         }
 
         rotateCamera = (() => {
@@ -99,7 +99,7 @@ module Chameleon {
             return () => {
                 var angle = Math.acos(
                     this._rotateStart.dot(this._rotateEnd) / this._rotateStart.length() / this._rotateEnd.length()
-                    );
+                );
                 if (angle) {
                     axis.crossVectors(this._rotateStart, this._rotateEnd).normalize();
                     angle *= this.rotateSpeed;
@@ -129,7 +129,7 @@ module Chameleon {
                     mouseChange.multiplyScalar(this._eye.length() * this.panSpeed);
                     pan.crossVectors(this._eye, this.camera.up).setLength(mouseChange.x).add(
                         cameraUp.copy(this.camera.up).setLength(mouseChange.y)
-                        );
+                    );
                     this.camera.position.add(pan);
                     this._target.add(pan);
                     this._panStart.copy(this._panEnd);
@@ -213,7 +213,7 @@ module Chameleon {
         }
 
         constructor(public camera: THREE.PerspectiveCamera,
-            public canvasBox: Box) {
+                    public canvasBox: Box) {
             super(camera, canvasBox);
         }
     }
@@ -257,18 +257,18 @@ module Chameleon {
         }
 
         constructor(public camera: THREE.OrthographicCamera,
-            public canvasBox: Box) {
+                    public canvasBox: Box) {
             super(camera, canvasBox);
             this._center0 = new THREE.Vector2(
                 (camera.left + camera.right) / 2,
                 (camera.top + camera.bottom) / 2
-                );
+            );
             this._viewSize = Math.min(
                 this._center0.x - camera.left,
                 camera.right - this._center0.x,
                 this._center0.y - camera.bottom,
                 camera.top - this._center0.y
-                );
+            );
             this.handleResize();
         }
     }
@@ -369,7 +369,7 @@ module Chameleon {
                     new THREE.Vector2(0.5, 0.5)
                 ]);
 
-                var lambertMaterial = new THREE.MeshLambertMaterial({ map: new THREE.Texture(singlePixelCanvas) });
+                var lambertMaterial = new THREE.MeshLambertMaterial({map: new THREE.Texture(singlePixelCanvas)});
                 lambertMaterial.map.needsUpdate = true;
                 this._viewingMaterial.materials.push(lambertMaterial);
             }
@@ -436,7 +436,7 @@ module Chameleon {
                     this._drawingCanvas,
                     xMin, yMin, patchCanvas.width, patchCanvas.height,
                     0, 0, patchCanvas.width, patchCanvas.height
-                    );
+                );
 
                 this._affectedFaces.forEach((faceIndex) => {
                     var faceMaterial = <THREE.MeshLambertMaterial>this._viewingMaterial.materials[faceIndex];
@@ -449,9 +449,9 @@ module Chameleon {
                         var drawingUV = drawingUvs[j];
                         viewingUvs[j].setX(
                             (drawingUV.x - uMin) * (this._drawingCanvas.width) / patchCanvas.width
-                            ).setY(
+                        ).setY(
                             (drawingUV.y - vMin) * (this._drawingCanvas.height) / patchCanvas.height
-                            );
+                        );
                     }
                 });
 
@@ -481,9 +481,9 @@ module Chameleon {
                 projectedPosition.copy(this.geometry.vertices[i]).project(this.camera);
                 this._drawingVertexUvs[i].setX(
                     (projectedPosition.x + 1) / 2
-                    ).setY(
+                ).setY(
                     (projectedPosition.y + 1) / 2
-                    );
+                );
             }
             for (var i = 0; i < this.geometry.faces.length; i += 1) {
                 this._drawingTextureUvs[i][0].copy(this._drawingVertexUvs[this.geometry.faces[i].a]);
@@ -507,14 +507,14 @@ module Chameleon {
                 canvasPos.x / this._drawingCanvas.width * 2 - 1,
                 -canvasPos.y / this._drawingCanvas.height * 2 + 1,
                 -10000
-                ).unproject(this.camera);
+            ).unproject(this.camera);
 
             var direction = new THREE.Vector3(0, 0, -1).transformDirection(this.camera.matrixWorld);
 
             return new THREE.Raycaster(
                 mouse3d,
                 direction
-                ).intersectObject(this._drawingTextureMesh);
+            ).intersectObject(this._drawingTextureMesh);
         }
 
         private _pointCircleCollide(point, circle, r) {
@@ -594,9 +594,12 @@ module Chameleon {
                 v2.copy(this._drawingTextureUvs[faceIndex][1]);
                 var v3 = new THREE.Vector2();
                 v3.copy(this._drawingTextureUvs[faceIndex][2]);
-                v1.x = v1.x * this._drawingCanvas.width; v1.y = v1.y * this._drawingCanvas.height;
-                v2.x = v2.x * this._drawingCanvas.width; v2.y = v2.y * this._drawingCanvas.height;
-                v3.x = v3.x * this._drawingCanvas.width; v3.y = v3.y * this._drawingCanvas.height;
+                v1.x = v1.x * this._drawingCanvas.width;
+                v1.y = (1 - v1.y) * this._drawingCanvas.height;
+                v2.x = v2.x * this._drawingCanvas.width;
+                v2.y = (1 - v2.y) * this._drawingCanvas.height;
+                v3.x = v3.x * this._drawingCanvas.width;
+                v3.y = (1 - v3.y) * this._drawingCanvas.height;
 
                 var inside = this._pointInTriangle(center, v1, v2, v3);
                 var collide1 = this._lineCircleCollide(v1, v2, center, radius);
@@ -627,7 +630,7 @@ module Chameleon {
 
                 // TODO use radius to find all affected triangles
                 this._isFloodFill.set(this._isFloodFillEmpty);
-                this._add_recursive(faceIndex, canvasPos, 5 * radius);
+                this._add_recursive(faceIndex, canvasPos, radius);
                 console.log(this._isFloodFill);
                 console.log(this._affectedFaces);
 
@@ -639,8 +642,8 @@ module Chameleon {
         // Assumption on geometry: material indices are same to face indices.
         // This special treatment is implemented in the constructor of Controls
         constructor(public geometry: THREE.Geometry,
-            public renderer: THREE.Renderer,
-            public camera: THREE.OrthographicCamera) {
+                    public renderer: THREE.Renderer,
+                    public camera: THREE.OrthographicCamera) {
 
             this._affectedFaces = new AffectedFacesRecorder(this.geometry.faces.length);
             this.initializeViewingTexture().initializeDrawingTexture();
@@ -721,7 +724,7 @@ module Chameleon {
         private _mesh: THREE.Mesh = new THREE.Mesh();
         canvas: HTMLCanvasElement;
 
-        canvasBox: Box = { left: 0, top: 0, width: 0, height: 0 };
+        canvasBox: Box = {left: 0, top: 0, width: 0, height: 0};
 
         public updateCanvasBox() {
             var canvasRect = this.canvas.getBoundingClientRect();
@@ -758,7 +761,7 @@ module Chameleon {
         })();
 
         private _renderer: THREE.Renderer = (() => {
-            var renderer = new THREE.WebGLRenderer({ antialias: true });
+            var renderer = new THREE.WebGLRenderer({antialias: true});
             renderer.setClearColor(0xAAAAAA, 1.0);
             return renderer;
         })();
@@ -898,7 +901,7 @@ module Chameleon {
                 viewSize = Math.max(
                     viewSize,
                     this._mesh.geometry.vertices[i].distanceTo(origin)
-                    );
+                );
             }
             viewSize *= 2 * 1.25;
             this._camera = new THREE.OrthographicCamera(-viewSize, viewSize, viewSize, -viewSize);
