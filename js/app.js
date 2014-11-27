@@ -1,4 +1,18 @@
-/// <reference path="./three.d.ts" />
+/// <reference path="../three.d.ts" />
+var Chameleon;
+(function (Chameleon) {
+    function mousePositionInCanvas(event, canvasBox) {
+        return new THREE.Vector2(event.pageX - canvasBox.left, event.pageY - canvasBox.top);
+    }
+    Chameleon.mousePositionInCanvas = mousePositionInCanvas;
+    function showCanvasInNewWindow(canvas) {
+        var dataURL = canvas.toDataURL("image/png");
+        var newWindow = window.open();
+        newWindow.document.write('<img style="border:1px solid black" src="' + dataURL + '"/>');
+    }
+    Chameleon.showCanvasInNewWindow = showCanvasInNewWindow;
+})(Chameleon || (Chameleon = {}));
+/// <reference path="./common.ts" />
 var __extends = this.__extends || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -7,22 +21,6 @@ var __extends = this.__extends || function (d, b) {
 };
 var Chameleon;
 (function (Chameleon) {
-    function create(geometry, canvas) {
-        return new Controls(geometry, canvas);
-    }
-    Chameleon.create = create;
-    var mousePositionInCanvas = (function () {
-        var vector = new THREE.Vector2();
-        return function (event, canvasBox, normalize) {
-            if (normalize === void 0) { normalize = false; }
-            vector.set(event.pageX - canvasBox.left, event.pageY - canvasBox.top);
-            if (normalize) {
-                vector.x /= canvasBox.width;
-                vector.y /= canvasBox.height;
-            }
-            return vector;
-        };
-    })();
     var mouseProjectionOnBall = (function () {
         var projGlobal = new THREE.Vector3(), projLocal = new THREE.Vector3();
         var upFactor = new THREE.Vector3(), eyeFactor = new THREE.Vector3(), sideFactor = new THREE.Vector3();
@@ -41,26 +39,6 @@ var Chameleon;
             return projGlobal.copy(sideFactor).add(upFactor).add(eyeFactor);
         };
     })();
-    var _brushSize;
-    var _brushType;
-    var _brushColor;
-    var _brushTexture;
-    function changeBrushSize(_size) {
-        _brushSize = _size;
-    }
-    Chameleon.changeBrushSize = changeBrushSize;
-    function changeBrushType(_type) {
-        _brushType = _type;
-    }
-    Chameleon.changeBrushType = changeBrushType;
-    function changeBrushColor(_color) {
-        _brushColor = _color;
-    }
-    Chameleon.changeBrushColor = changeBrushColor;
-    function changeTextureType(_texture) {
-        _brushTexture = _texture;
-    }
-    Chameleon.changeTextureType = changeTextureType;
     var CameraControlsState;
     (function (CameraControlsState) {
         CameraControlsState[CameraControlsState["Idle"] = 0] = "Idle";
@@ -155,7 +133,10 @@ var Chameleon;
             };
         }
         CameraControlsBase.prototype._getMousePositionInCanvas = function (event) {
-            return mousePositionInCanvas(event, this.canvasBox, true);
+            var pos = Chameleon.mousePositionInCanvas(event, this.canvasBox);
+            pos.x /= this.canvasBox.width;
+            pos.y /= this.canvasBox.height;
+            return pos;
         };
         CameraControlsBase.prototype._getMouseProjectionOnBall = function (event) {
             return mouseProjectionOnBall(event, this.canvasBox, this.camera.up, this._eye);
@@ -196,6 +177,7 @@ var Chameleon;
         };
         return PerspectiveCameraControls;
     })(CameraControlsBase);
+    Chameleon.PerspectiveCameraControls = PerspectiveCameraControls;
     /**
      * A simplification of THREE.OrthographicTrackballControls from the three.js examples
      */
@@ -236,17 +218,11 @@ var Chameleon;
         };
         return OrthographicCameraControls;
     })(CameraControlsBase);
-    var ControlsState;
-    (function (ControlsState) {
-        ControlsState[ControlsState["Idle"] = 0] = "Idle";
-        ControlsState[ControlsState["Draw"] = 1] = "Draw";
-        ControlsState[ControlsState["View"] = 2] = "View";
-    })(ControlsState || (ControlsState = {}));
-    function showCanvasInNewWindow(canvas) {
-        var dataURL = canvas.toDataURL("image/png");
-        var newWindow = window.open();
-        newWindow.document.write('<img style="border:1px solid black" src="' + dataURL + '"/>');
-    }
+    Chameleon.OrthographicCameraControls = OrthographicCameraControls;
+})(Chameleon || (Chameleon = {}));
+/// <reference path="./common.ts" />
+var Chameleon;
+(function (Chameleon) {
     var AffectedFacesRecorder = (function () {
         function AffectedFacesRecorder(nFaces) {
             this._nAffectedFaces = 0;
@@ -460,7 +436,7 @@ var Chameleon;
             return dx * dx + dy * dy <= r * r;
         };
         TextureManager.prototype._lineCircleCollide = function (a, b, circle, radius) {
-            //check to see if start or end points lie within circle 
+            //check to see if start or end points lie within circle
             if (this._pointCircleCollide(a, circle, radius)) {
                 return true;
             }
@@ -545,6 +521,31 @@ var Chameleon;
         };
         return TextureManager;
     })();
+    Chameleon.TextureManager = TextureManager;
+})(Chameleon || (Chameleon = {}));
+/// <reference path="./common.ts" />
+var Chameleon;
+(function (Chameleon) {
+    Chameleon._brushSize;
+    Chameleon._brushType;
+    Chameleon._brushColor;
+    Chameleon._brushTexture;
+    function changeBrushSize(_size) {
+        Chameleon._brushSize = _size;
+    }
+    Chameleon.changeBrushSize = changeBrushSize;
+    function changeBrushType(_type) {
+        Chameleon._brushType = _type;
+    }
+    Chameleon.changeBrushType = changeBrushType;
+    function changeBrushColor(_color) {
+        Chameleon._brushColor = _color;
+    }
+    Chameleon.changeBrushColor = changeBrushColor;
+    function changeTextureType(_texture) {
+        Chameleon._brushTexture = _texture;
+    }
+    Chameleon.changeTextureType = changeTextureType;
     var Pencil = (function () {
         function Pencil() {
             this._canvasContext = null;
@@ -579,8 +580,8 @@ var Chameleon;
     var Pencil1 = (function () {
         function Pencil1() {
             this._canvasContext = null;
-            this._pencilSize = _brushSize;
-            this._pencilColor = _brushColor;
+            this._pencilSize = Chameleon._brushSize;
+            this._pencilColor = Chameleon._brushColor;
         }
         Object.defineProperty(Pencil1.prototype, "radius", {
             get: function () {
@@ -616,8 +617,8 @@ var Chameleon;
     var Pencil2 = (function () {
         function Pencil2() {
             this._canvasContext = null;
-            this._pencilSize = _brushSize;
-            this._pencilColor = _brushColor;
+            this._pencilSize = Chameleon._brushSize;
+            this._pencilColor = Chameleon._brushColor;
         }
         Object.defineProperty(Pencil2.prototype, "radius", {
             get: function () {
@@ -656,7 +657,7 @@ var Chameleon;
         function Pencil3() {
             this.img = new Image();
             this._canvasContext = null;
-            this._pencilSize = _brushSize;
+            this._pencilSize = Chameleon._brushSize;
         }
         Object.defineProperty(Pencil3.prototype, "radius", {
             get: function () {
@@ -707,7 +708,7 @@ var Chameleon;
         function Pencil4() {
             this.img = new Image();
             this._canvasContext = null;
-            this._pencilSize = _brushSize;
+            this._pencilSize = Chameleon._brushSize;
         }
         Object.defineProperty(Pencil4.prototype, "radius", {
             get: function () {
@@ -766,7 +767,7 @@ var Chameleon;
         function Pencil5() {
             this._canvasContext = null;
             this._pencilSize = 3;
-            this._pencilColor = _brushColor;
+            this._pencilColor = Chameleon._brushColor;
         }
         Object.defineProperty(Pencil5.prototype, "radius", {
             get: function () {
@@ -818,8 +819,8 @@ var Chameleon;
         function Pencil6() {
             this._canvasContext = null;
             this._points = [];
-            this._pencilSize = _brushSize;
-            this._pencilColor = _brushColor;
+            this._pencilSize = Chameleon._brushSize;
+            this._pencilColor = Chameleon._brushColor;
         }
         Object.defineProperty(Pencil6.prototype, "radius", {
             get: function () {
@@ -874,8 +875,8 @@ var Chameleon;
         function Pencil7() {
             this._canvasContext = null;
             this._points = [];
-            this._pencilSize = _brushSize;
-            this._pencilColor = _brushColor;
+            this._pencilSize = Chameleon._brushSize;
+            this._pencilColor = Chameleon._brushColor;
         }
         Object.defineProperty(Pencil7.prototype, "radius", {
             get: function () {
@@ -935,8 +936,8 @@ var Chameleon;
         function Pencil8() {
             this._canvasContext = null;
             this._points = [];
-            this._pencilSize = _brushSize;
-            this._pencilColor = _brushColor;
+            this._pencilSize = Chameleon._brushSize;
+            this._pencilColor = Chameleon._brushColor;
         }
         Object.defineProperty(Pencil8.prototype, "radius", {
             get: function () {
@@ -1010,12 +1011,12 @@ var Chameleon;
             this.img = new Image();
             this._canvasContext = null;
             this._points = [];
-            this._pencilSize = _brushSize;
-            this._pencilTexture = _brushTexture;
+            this._pencilSize = Chameleon._brushSize;
+            this._pencilTexture = Chameleon._brushTexture;
         }
         Object.defineProperty(Pencil9.prototype, "radius", {
             get: function () {
-                return _brushSize;
+                return Chameleon._brushSize;
             },
             enumerable: true,
             configurable: true
@@ -1084,6 +1085,19 @@ var Chameleon;
         return Pencil9;
     })();
     Chameleon.Pencil9 = Pencil9;
+})(Chameleon || (Chameleon = {}));
+/// <reference path="./common.ts" />
+/// <reference path="./camera-controls.ts" />
+/// <reference path="./texture-manager.ts" />
+/// <reference path="./brushes.ts" />
+var Chameleon;
+(function (Chameleon) {
+    var ControlsState;
+    (function (ControlsState) {
+        ControlsState[ControlsState["Idle"] = 0] = "Idle";
+        ControlsState[ControlsState["Draw"] = 1] = "Draw";
+        ControlsState[ControlsState["View"] = 2] = "View";
+    })(ControlsState || (ControlsState = {}));
     var Controls = (function () {
         function Controls(geometry, canvas) {
             var _this = this;
@@ -1110,7 +1124,7 @@ var Chameleon;
                 renderer.setClearColor(0xAAAAAA, 1.0);
                 return renderer;
             })();
-            this.brush = new Pencil1();
+            this.brush = new Chameleon.Pencil1();
             this._mousedown = function (event) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -1126,33 +1140,33 @@ var Chameleon;
                 else {
                     _this._state = 1 /* Draw */;
                     _this._useDrawingTexture();
-                    var pos = mousePositionInCanvas(event, _this.canvasBox);
-                    if (_brushType == "brush1") {
-                        _this.brush = new Pencil1();
+                    var pos = Chameleon.mousePositionInCanvas(event, _this.canvasBox);
+                    if (Chameleon._brushType == "brush1") {
+                        _this.brush = new Chameleon.Pencil1();
                     }
-                    if (_brushType == "brush2") {
-                        _this.brush = new Pencil2();
+                    if (Chameleon._brushType == "brush2") {
+                        _this.brush = new Chameleon.Pencil2();
                     }
-                    if (_brushType == "brush3") {
-                        _this.brush = new Pencil3();
+                    if (Chameleon._brushType == "brush3") {
+                        _this.brush = new Chameleon.Pencil3();
                     }
-                    if (_brushType == "brush4") {
-                        _this.brush = new Pencil4();
+                    if (Chameleon._brushType == "brush4") {
+                        _this.brush = new Chameleon.Pencil4();
                     }
-                    if (_brushType == "brush5") {
-                        _this.brush = new Pencil5();
+                    if (Chameleon._brushType == "brush5") {
+                        _this.brush = new Chameleon.Pencil5();
                     }
-                    if (_brushType == "brush6") {
-                        _this.brush = new Pencil6();
+                    if (Chameleon._brushType == "brush6") {
+                        _this.brush = new Chameleon.Pencil6();
                     }
-                    if (_brushType == "brush7") {
-                        _this.brush = new Pencil7();
+                    if (Chameleon._brushType == "brush7") {
+                        _this.brush = new Chameleon.Pencil7();
                     }
-                    if (_brushType == "brush8") {
-                        _this.brush = new Pencil8();
+                    if (Chameleon._brushType == "brush8") {
+                        _this.brush = new Chameleon.Pencil8();
                     }
-                    if (_brushType == "brush9") {
-                        _this.brush = new Pencil9();
+                    if (Chameleon._brushType == "brush9") {
+                        _this.brush = new Chameleon.Pencil9();
                     }
                     _this.brush.startStroke(_this._textureManager.drawingCanvas, pos);
                     _this._textureManager.onStrokePainted(pos, _this.brush.radius);
@@ -1171,7 +1185,7 @@ var Chameleon;
                         _this._cameraControls.onMouseMove(event);
                         break;
                     case 1 /* Draw */:
-                        var pos = mousePositionInCanvas(event, _this.canvasBox);
+                        var pos = Chameleon.mousePositionInCanvas(event, _this.canvasBox);
                         _this.brush.continueStoke(pos);
                         _this._textureManager.onStrokePainted(pos, _this.brush.radius);
                         break;
@@ -1218,8 +1232,8 @@ var Chameleon;
             viewSize *= 2 * 1.25;
             this._camera = new THREE.OrthographicCamera(-viewSize, viewSize, viewSize, -viewSize);
             this._camera.position.z = viewSize * 10;
-            this._cameraControls = new OrthographicCameraControls(this._camera, this.canvasBox);
-            this._textureManager = new TextureManager(this._geometry, this._renderer, this._camera);
+            this._cameraControls = new Chameleon.OrthographicCameraControls(this._camera, this.canvasBox);
+            this._textureManager = new Chameleon.TextureManager(this._geometry, this._renderer, this._camera);
             this._textureManager.applyViewingTexture(this._mesh);
             this._usingViewingTexture = true;
             this.handleResize();
@@ -1265,6 +1279,14 @@ var Chameleon;
     })();
     Chameleon.Controls = Controls;
 })(Chameleon || (Chameleon = {}));
+/// <reference path="./chameleon/controls.ts" />
+var Chameleon;
+(function (Chameleon) {
+    function create(geometry, canvas) {
+        return new Chameleon.Controls(geometry, canvas);
+    }
+    Chameleon.create = create;
+})(Chameleon || (Chameleon = {}));
 /// <reference path="./three.d.ts" />
 /// <reference path="./dat.gui.d.ts" />
 /// <reference path="./chameleon.ts" />
@@ -1285,7 +1307,6 @@ var Chameleon;
         var _brushGUI = new FizzyText();
         var _gui = new dat.GUI();
         var _brushType = _gui.add(_brushGUI, 'brush', ['brush1', 'brush2', 'brush3', 'brush4', 'brush5', 'brush6', 'brush7', 'brush8', 'brush9']);
-        var _reset = _gui.add(_brushGUI, 'reset');
         var _f1 = _gui.addFolder("BrushSize");
         var _brushSize = _f1.add(_brushGUI, 'size', 1, 30).min(1).step(0.5);
         var _f2 = _gui.addFolder("Color");
@@ -1345,9 +1366,6 @@ var Chameleon;
             Chameleon.changeBrushColor(_brushGUI.color0);
         });
     };
-    function resetGeometry() {
-    }
-    ;
     // Render loop
     var render = function () {
         chameleon.update();
@@ -1360,7 +1378,4 @@ var FizzyText = function () {
     this.textureType = 'textureType';
     this.size = 15;
     this.color0 = "#9b0000";
-    this.reset = function () {
-        this.resetGeometry();
-    };
 };

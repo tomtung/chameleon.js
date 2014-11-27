@@ -24,7 +24,6 @@
         var _brushType = _gui.add(_brushGUI, 'brush', ['brush1', 'brush2', 'brush3', 'brush4', 'brush5', 'brush6', 'brush7', 'brush8', 'brush9']);
 
 
-        var _reset = _gui.add(_brushGUI, 'reset');
         var _f1 = _gui.addFolder("BrushSize");
         var _brushSize = _f1.add(_brushGUI, 'size', 1, 30).min(1).step(0.5);
         var _f2 = _gui.addFolder("Color");
@@ -92,9 +91,7 @@
             Chameleon.changeBrushColor(_brushGUI.color0);
         });
     };
-    function resetGeometry() {
 
-    };
     // Render loop
     var render = () => {
         chameleon.update();
@@ -109,8 +106,4 @@ var FizzyText = function () {
     this.textureType = 'textureType';
     this.size = 15;
     this.color0 = "#9b0000";
-    this.reset = function () {
-        this.resetGeometry();
-    };
-
 };
