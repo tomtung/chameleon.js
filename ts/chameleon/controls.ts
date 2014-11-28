@@ -147,6 +147,10 @@ module Chameleon {
                 if (_brushType == "brush9") {
                     this.brush = new Pencil9();
                 }
+                if (_brushType == "brush10") {
+                    this.brush = new Pencil10();
+                }
+
 
                 this.brush.startStroke(this._textureManager.drawingCanvas, pos);
                 this._textureManager.onStrokePainted(pos, this.brush.radius);

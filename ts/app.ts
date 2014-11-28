@@ -21,7 +21,7 @@
     window.onload = function () {
         var _brushGUI = new FizzyText();
         var _gui = new dat.GUI();
-        var _brushType = _gui.add(_brushGUI, 'brush', ['brush1', 'brush2', 'brush3', 'brush4', 'brush5', 'brush6', 'brush7', 'brush8', 'brush9']);
+        var _brushType = _gui.add(_brushGUI, 'brush', ['brush1', 'brush2', 'brush3', 'brush4', 'brush5', 'brush6', 'brush7', 'brush8', 'brush9','brush10']);
 
 
         var _f1 = _gui.addFolder("BrushSize");
@@ -41,7 +41,7 @@
 
         _brushType.onFinishChange(function (value) {
 
-            if ((_brushGUI.brush == "brush1" || _brushGUI.brush == "brush2" || _brushGUI.brush == "brush5" || _brushGUI.brush == "brush6" || _brushGUI.brush == "brush7") && !_gui.hasFolder("Color")) {
+            if ((_brushGUI.brush == "brush1" || _brushGUI.brush == "brush2" || _brushGUI.brush == "brush5" || _brushGUI.brush == "brush6" || _brushGUI.brush == "brush7"|| _brushGUI.brush == "brush10") && !_gui.hasFolder("Color")) {
                 _f2 = _gui.addFolder("Color");
                 _brushColor = _f2.addColor(_brushGUI, 'color0');
                 _f2.open();
@@ -49,7 +49,7 @@
                     Chameleon.changeBrushColor(_brushGUI.color0);
                 });
             }
-            if ((_brushGUI.brush == "brush1" || _brushGUI.brush == "brush2" || _brushGUI.brush == "brush7" || _brushGUI.brush == "brush8" || _brushGUI.brush == "brush9") && !_gui.hasFolder("BrushSize")) {
+            if ((_brushGUI.brush == "brush1" || _brushGUI.brush == "brush2" || _brushGUI.brush == "brush7" || _brushGUI.brush == "brush8" || _brushGUI.brush == "brush9"|| _brushGUI.brush == "brush10") && !_gui.hasFolder("BrushSize")) {
                 _f1 = _gui.addFolder("BrushSize");
                 _brushSize = _f1.add(_brushGUI, 'size', 1, 30).min(1).step(0.5);
                 _f1.open();

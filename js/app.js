@@ -622,7 +622,7 @@ var Chameleon;
         }
         Object.defineProperty(Pencil2.prototype, "radius", {
             get: function () {
-                return this._pencilSize;
+                return this._pencilSize * 2.5;
             },
             enumerable: true,
             configurable: true
@@ -661,7 +661,7 @@ var Chameleon;
         }
         Object.defineProperty(Pencil3.prototype, "radius", {
             get: function () {
-                return 32;
+                return 40;
             },
             enumerable: true,
             configurable: true
@@ -712,7 +712,7 @@ var Chameleon;
         }
         Object.defineProperty(Pencil4.prototype, "radius", {
             get: function () {
-                return 10;
+                return 40;
             },
             enumerable: true,
             configurable: true
@@ -771,7 +771,7 @@ var Chameleon;
         }
         Object.defineProperty(Pencil5.prototype, "radius", {
             get: function () {
-                return 3;
+                return 15;
             },
             enumerable: true,
             configurable: true
@@ -824,7 +824,7 @@ var Chameleon;
         }
         Object.defineProperty(Pencil6.prototype, "radius", {
             get: function () {
-                return 15;
+                return 40;
             },
             enumerable: true,
             configurable: true
@@ -880,7 +880,7 @@ var Chameleon;
         }
         Object.defineProperty(Pencil7.prototype, "radius", {
             get: function () {
-                return this._pencilSize;
+                return this._pencilSize * 3.5;
             },
             enumerable: true,
             configurable: true
@@ -941,7 +941,7 @@ var Chameleon;
         }
         Object.defineProperty(Pencil8.prototype, "radius", {
             get: function () {
-                return this._pencilSize;
+                return 40;
             },
             enumerable: true,
             configurable: true
@@ -979,7 +979,7 @@ var Chameleon;
                 angle: this.getRandomInt(0, 180),
                 width: this.getRandomInt(1, 10),
                 opacity: Math.random(),
-                scale: this.getRandomInt(1, 20) / 10,
+                scale: this.getRandomInt(1, 20) / 20,
                 color: ('rgb(' + this.getRandomInt(0, 255) + ',' + this.getRandomInt(0, 255) + ',' + this.getRandomInt(0, 255) + ')')
             });
         };
@@ -1085,6 +1085,54 @@ var Chameleon;
         return Pencil9;
     })();
     Chameleon.Pencil9 = Pencil9;
+    var Pencil10 = (function () {
+        function Pencil10() {
+            this._canvasContext = null;
+            this._density = 100;
+            this._pencilSize = Chameleon._brushSize;
+            this._pencilColor = Chameleon._brushColor;
+        }
+        Object.defineProperty(Pencil10.prototype, "radius", {
+            get: function () {
+                return this._pencilSize * 2;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Pencil10.prototype.getRandomInt = function (min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        };
+        Pencil10.prototype.getRandomFloat = function (min, max) {
+            return Math.random() * (max - min) + min;
+        };
+        Pencil10.prototype.startStroke = function (canvas, position) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.beginPath();
+            this._canvasContext.save(); // Assumption: nobody        else will call this until the stroke is finished
+            this._canvasContext.lineWidth = this._pencilSize;
+            this._canvasContext.fillStyle = this._pencilColor;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this._canvasContext.moveTo(position.x, position.y);
+        };
+        Pencil10.prototype.continueStoke = function (position) {
+            if (this._canvasContext) {
+                for (var i = this._density; i--;) {
+                    var radius = this._pencilSize;
+                    var offsetX = this.getRandomInt(-radius, radius);
+                    var offsetY = this.getRandomInt(-radius, radius);
+                    this._canvasContext.fillRect(position.x + offsetX * Math.cos(this.getRandomFloat(0, Math.PI * 2)), position.y + offsetY * Math.cos(this.getRandomFloat(0, Math.PI * 2)), 1, 1);
+                }
+            }
+        };
+        Pencil10.prototype.finishStroke = function () {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+            }
+        };
+        return Pencil10;
+    })();
+    Chameleon.Pencil10 = Pencil10;
 })(Chameleon || (Chameleon = {}));
 /// <reference path="./common.ts" />
 /// <reference path="./camera-controls.ts" />
@@ -1167,6 +1215,9 @@ var Chameleon;
                     }
                     if (Chameleon._brushType == "brush9") {
                         _this.brush = new Chameleon.Pencil9();
+                    }
+                    if (Chameleon._brushType == "brush10") {
+                        _this.brush = new Chameleon.Pencil10();
                     }
                     _this.brush.startStroke(_this._textureManager.drawingCanvas, pos);
                     _this._textureManager.onStrokePainted(pos, _this.brush.radius);
@@ -1306,7 +1357,7 @@ var Chameleon;
     window.onload = function () {
         var _brushGUI = new FizzyText();
         var _gui = new dat.GUI();
-        var _brushType = _gui.add(_brushGUI, 'brush', ['brush1', 'brush2', 'brush3', 'brush4', 'brush5', 'brush6', 'brush7', 'brush8', 'brush9']);
+        var _brushType = _gui.add(_brushGUI, 'brush', ['brush1', 'brush2', 'brush3', 'brush4', 'brush5', 'brush6', 'brush7', 'brush8', 'brush9', 'brush10']);
         var _f1 = _gui.addFolder("BrushSize");
         var _brushSize = _f1.add(_brushGUI, 'size', 1, 30).min(1).step(0.5);
         var _f2 = _gui.addFolder("Color");
@@ -1320,7 +1371,7 @@ var Chameleon;
         _f2.open();
         _f1.open();
         _brushType.onFinishChange(function (value) {
-            if ((_brushGUI.brush == "brush1" || _brushGUI.brush == "brush2" || _brushGUI.brush == "brush5" || _brushGUI.brush == "brush6" || _brushGUI.brush == "brush7") && !_gui.hasFolder("Color")) {
+            if ((_brushGUI.brush == "brush1" || _brushGUI.brush == "brush2" || _brushGUI.brush == "brush5" || _brushGUI.brush == "brush6" || _brushGUI.brush == "brush7" || _brushGUI.brush == "brush10") && !_gui.hasFolder("Color")) {
                 _f2 = _gui.addFolder("Color");
                 _brushColor = _f2.addColor(_brushGUI, 'color0');
                 _f2.open();
@@ -1328,7 +1379,7 @@ var Chameleon;
                     Chameleon.changeBrushColor(_brushGUI.color0);
                 });
             }
-            if ((_brushGUI.brush == "brush1" || _brushGUI.brush == "brush2" || _brushGUI.brush == "brush7" || _brushGUI.brush == "brush8" || _brushGUI.brush == "brush9") && !_gui.hasFolder("BrushSize")) {
+            if ((_brushGUI.brush == "brush1" || _brushGUI.brush == "brush2" || _brushGUI.brush == "brush7" || _brushGUI.brush == "brush8" || _brushGUI.brush == "brush9" || _brushGUI.brush == "brush10") && !_gui.hasFolder("BrushSize")) {
                 _f1 = _gui.addFolder("BrushSize");
                 _brushSize = _f1.add(_brushGUI, 'size', 1, 30).min(1).step(0.5);
                 _f1.open();

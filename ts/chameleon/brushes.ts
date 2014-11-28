@@ -100,7 +100,7 @@ module Chameleon {
 
     export class Pencil2 implements Brush {
         get radius(): number {
-            return this._pencilSize;
+            return this._pencilSize * 2.5;
         }
 
         private _canvasContext: CanvasRenderingContext2D = null;
@@ -142,7 +142,7 @@ module Chameleon {
     }
     export class Pencil3 implements Brush {
         get radius(): number {
-            return 32;
+            return 40;
         }
 
         private img = new Image();
@@ -204,7 +204,7 @@ module Chameleon {
     }
     export class Pencil4 implements Brush {
         get radius(): number {
-            return 10;
+            return 40;
         }
 
         private img = new Image();
@@ -277,7 +277,7 @@ module Chameleon {
     }
     export class Pencil5 implements Brush {
         get radius(): number {
-            return 3;
+            return 15;
         }
 
         private _canvasContext: CanvasRenderingContext2D = null;
@@ -338,7 +338,7 @@ module Chameleon {
     }
     export class Pencil6 implements Brush {
         get radius(): number {
-            return 15;
+            return 40;
         }
 
         private _canvasContext: CanvasRenderingContext2D = null;
@@ -404,7 +404,7 @@ module Chameleon {
     }
     export class Pencil7 implements Brush {
         get radius(): number {
-            return this._pencilSize;
+            return this._pencilSize * 3.5;
         }
 
         private _canvasContext: CanvasRenderingContext2D = null;
@@ -471,7 +471,7 @@ module Chameleon {
     }
     export class Pencil8 implements Brush {
         get radius(): number {
-            return this._pencilSize;
+            return 40;
         }
 
         private _canvasContext: CanvasRenderingContext2D = null;
@@ -514,7 +514,7 @@ module Chameleon {
                 angle: this.getRandomInt(0, 180),
                 width: this.getRandomInt(1, 10),
                 opacity: Math.random(),
-                scale: this.getRandomInt(1, 20) / 10,
+                scale: this.getRandomInt(1, 20) / 20,
                 color: ('rgb(' + this.getRandomInt(0, 255) + ',' + this.getRandomInt(0, 255) + ',' + this.getRandomInt(0, 255) + ')')
             });
         }
@@ -644,6 +644,59 @@ module Chameleon {
         constructor() {
             this._pencilSize = _brushSize;
             this._pencilTexture = _brushTexture;
+        }
+    }
+
+    export class Pencil10 implements Brush {
+        get radius(): number {
+            return this._pencilSize * 2;
+        }
+
+        private _canvasContext: CanvasRenderingContext2D = null;
+        private _pencilSize;
+        private _pencilColor;
+        private _density = 100;
+
+        getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        getRandomFloat(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+
+        startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.beginPath();
+            this._canvasContext.save(); // Assumption: nobody        else will call this until the stroke is finished
+            this._canvasContext.lineWidth = this._pencilSize;
+            this._canvasContext.fillStyle = this._pencilColor;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this._canvasContext.moveTo(position.x, position.y);
+        }
+
+        continueStoke(position: THREE.Vector2) {
+            if (this._canvasContext) {
+                for (var i = this._density; i--;) {
+                    var radius = this._pencilSize;
+                    var offsetX = this.getRandomInt(-radius, radius);
+                    var offsetY = this.getRandomInt(-radius, radius);
+                    this._canvasContext.fillRect(position.x + offsetX * Math.cos(this.getRandomFloat(0, Math.PI * 2)), position.y + offsetY * Math.cos(this.getRandomFloat(0, Math.PI * 2)), 1, 1);
+                }
+            }
+        }
+
+        finishStroke() {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+            }
+        }
+
+        constructor() {
+            this._pencilSize = _brushSize;
+            this._pencilColor = _brushColor
         }
     }
 
