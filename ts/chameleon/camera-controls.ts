@@ -44,7 +44,7 @@ module Chameleon {
 
         _state: CameraControlsState = CameraControlsState.Idle;
         _eye: THREE.Vector3 = new THREE.Vector3();
-        _target: THREE.Vector3 = new THREE.Vector3();
+        target: THREE.Vector3 = new THREE.Vector3();
         _rotateStart: THREE.Vector3 = new THREE.Vector3();
         _rotateEnd: THREE.Vector3 = new THREE.Vector3();
         _zoomStart: number = 0;
@@ -106,21 +106,21 @@ module Chameleon {
                         cameraUp.copy(this.camera.up).setLength(mouseChange.y)
                     );
                     this.camera.position.add(pan);
-                    this._target.add(pan);
+                    this.target.add(pan);
                     this._panStart.copy(this._panEnd);
                 }
             }
         })();
 
         updateCamera() {
-            this._eye.subVectors(this.camera.position, this._target);
+            this._eye.subVectors(this.camera.position, this.target);
 
             this.rotateCamera();
             this.zoomCamera();
             this.panCamera();
 
-            this.camera.position.addVectors(this._target, this._eye);
-            this.camera.lookAt(this._target);
+            this.camera.position.addVectors(this.target, this._eye);
+            this.camera.lookAt(this.target);
         }
 
 
@@ -199,8 +199,6 @@ module Chameleon {
     export class OrthographicCameraControls extends CameraControlsBase {
         private _center0: THREE.Vector2;
         private _viewSize: number;
-
-        private _zoomFactor: number;
 
         zoomCamera() {
             var factor = 1.0 + (this._zoomEnd - this._zoomStart) * this.zoomSpeed;

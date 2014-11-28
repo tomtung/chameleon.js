@@ -173,6 +173,33 @@ module Chameleon {
             this._cameraControls.onMouseWheel(event);
         };
 
+        private _boundingBallRadius: number;
+        private static _computeBoundingBallRadius(geometry: THREE.Geometry): number {
+            var radius = 0;
+            var origin = new THREE.Vector3(0, 0, 0);
+            for (var i = 0; i < geometry.vertices.length; i += 1) {
+                radius = Math.max(
+                    radius,
+                    geometry.vertices[i].distanceTo(origin)
+                );
+            }
+
+            return radius;
+        }
+
+        resetCamera() {
+            this._camera.position.set(
+                0, 0, this._boundingBallRadius * 10
+            );
+            this._cameraControls.target.copy(new THREE.Vector3(0, 0, 0));
+            this._camera.lookAt(new THREE.Vector3(0, 0, 0));
+            this._camera.up.set(0, 1, 0);
+            this._camera.zoom = 1;
+            this._camera.updateProjectionMatrix();
+            this._useViewingTexture();
+            this._cameraControls.handleResize();
+        }
+
         constructor(geometry: THREE.Geometry, canvas?: HTMLCanvasElement) {
             this._geometry = geometry.clone();
             // Note that a crucial assumption is that this Mesh object will never be transformed (rotated, scaled, or translated)
@@ -188,18 +215,14 @@ module Chameleon {
             this.canvas.addEventListener('mousewheel', this._mousewheel, false);
             this.canvas.addEventListener('DOMMouseScroll', this._mousewheel, false); // firefox
 
-            var viewSize = 1;
-            var origin = new THREE.Vector3(0, 0, 0);
-            for (var i = 0; i < this._mesh.geometry.vertices.length; i += 1) {
-                viewSize = Math.max(
-                    viewSize,
-                    this._mesh.geometry.vertices[i].distanceTo(origin)
-                );
-            }
-            viewSize *= 1.5;
-            this._camera = new THREE.OrthographicCamera(-viewSize, viewSize, viewSize, -viewSize);
-            this._camera.position.z = viewSize * 10;
-
+            this._boundingBallRadius = Controls._computeBoundingBallRadius(this._geometry);
+            this._camera = new THREE.OrthographicCamera(
+                -this._boundingBallRadius * 1.5,
+                this._boundingBallRadius * 1.5,
+                this._boundingBallRadius * 1.5,
+                -this._boundingBallRadius * 1.5
+            );
+            this._camera.position.z = this._boundingBallRadius * 10;
             this._cameraControls = new OrthographicCameraControls(this._camera, this.canvasBox);
 
             this._textureManager = new TextureManager(this._geometry, this._renderer, this._camera);

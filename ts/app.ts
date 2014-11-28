@@ -167,8 +167,13 @@ interface TextureItem {
     }
 
     function setUpGui() {
-        var settings = {};
+        var settings = {
+            resetCamera: () => {
+                chameleon.resetCamera();
+            }
+        };
         var gui = new dat.GUI();
+        gui.add(settings, 'resetCamera').name('Reset Camera');
         var brushFolder = gui.addFolder('Brush');
         brushFolder.open();
         setUpBrushSettingsGui(settings, brushFolder);
