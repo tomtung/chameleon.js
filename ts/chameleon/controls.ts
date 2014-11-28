@@ -196,7 +196,7 @@ module Chameleon {
                     this._mesh.geometry.vertices[i].distanceTo(origin)
                 );
             }
-            viewSize *= 2 * 1.25;
+            viewSize *= 1.5;
             this._camera = new THREE.OrthographicCamera(-viewSize, viewSize, viewSize, -viewSize);
             this._camera.position.z = viewSize * 10;
 

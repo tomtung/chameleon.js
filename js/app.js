@@ -200,7 +200,7 @@ var Chameleon;
             this.camera = camera;
             this.canvasBox = canvasBox;
             this._center0 = new THREE.Vector2((camera.left + camera.right) / 2, (camera.top + camera.bottom) / 2);
-            this._viewSize = Math.min(this._center0.x - camera.left, camera.right - this._center0.x, this._center0.y - camera.bottom, camera.top - this._center0.y);
+            this._viewSize = 2 * Math.max(this._center0.x - camera.left, camera.right - this._center0.x, this._center0.y - camera.bottom, camera.top - this._center0.y);
             this.handleResize();
         }
         OrthographicCameraControls.prototype.zoomCamera = function () {
@@ -1078,7 +1078,7 @@ var Chameleon;
             for (var i = 0; i < this._mesh.geometry.vertices.length; i += 1) {
                 viewSize = Math.max(viewSize, this._mesh.geometry.vertices[i].distanceTo(origin));
             }
-            viewSize *= 2 * 1.25;
+            viewSize *= 1.5;
             this._camera = new THREE.OrthographicCamera(-viewSize, viewSize, viewSize, -viewSize);
             this._camera.position.z = viewSize * 10;
             this._cameraControls = new Chameleon.OrthographicCameraControls(this._camera, this.canvasBox);

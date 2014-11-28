@@ -238,7 +238,7 @@ module Chameleon {
                 (camera.left + camera.right) / 2,
                 (camera.top + camera.bottom) / 2
             );
-            this._viewSize = Math.min(
+            this._viewSize = 2 * Math.max(
                 this._center0.x - camera.left,
                 camera.right - this._center0.x,
                 this._center0.y - camera.bottom,
