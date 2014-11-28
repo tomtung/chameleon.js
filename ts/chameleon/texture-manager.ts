@@ -352,7 +352,6 @@ module Chameleon {
                 this._add_recursive(faceIndex, canvasPos, radius);
                 console.log(this._isFloodFill);
                 console.log(this._affectedFaces);
-
             }
 
             return this;

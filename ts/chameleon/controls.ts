@@ -58,7 +58,7 @@ module Chameleon {
             return renderer;
         })();
 
-        brush: Brush = new Pencil1();
+        brush: Brush = new Marker();
 
 
         private _textureManager: TextureManager;
@@ -120,29 +120,29 @@ module Chameleon {
                 var pos = mousePositionInCanvas(event, this.canvasBox);
 
                 if (_brushType == "brush1") {
-                    this.brush = new Pencil1();
+                    this.brush = new Marker();
                 }
                 if (_brushType == "brush2") {
-                    this.brush = new Pencil2();
+                    this.brush = new BlurryMarker();
                 }
                 if (_brushType == "brush3") {
-                    this.brush = new Pencil3();
+                    this.brush = new CalligraphyBrush();
                 }
                 if (_brushType == "brush4") {
-                    this.brush = new Pencil4();
+                    this.brush = new Fur();
                 }
                 if (_brushType == "brush5") {
-                    this.brush = new Pencil5();
+                    this.brush = new ThickBrush();
                 }
                 if (_brushType == "brush6") {
-                    this.brush = new Pencil6();
+                    this.brush = new InkDrop();
                 }
                 if (_brushType == "brush7") {
-                    this.brush = new Pencil7();
+                    this.brush = new Star();
                 }
 
                 if (_brushType == "brush8") {
-                    this.brush = new Pencil8();
+                    this.brush = new RandomStar();
                 }
                 if (_brushType == "brush9") {
                     this.brush = new Pencil9();
