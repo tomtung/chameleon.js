@@ -53,6 +53,8 @@ declare module dat {
         setValue(value: any): GUIController;
         step(n: number): GUIController;
         name(name: string): GUIController;
+        domElement: HTMLElement;
+
         updateDisplay(): void;
 
         onChange: (value?: any) => void;

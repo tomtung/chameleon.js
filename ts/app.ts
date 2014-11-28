@@ -2,6 +2,19 @@
 /// <reference path="./dat.gui.d.ts" />
 /// <reference path="./chameleon.ts" />
 
+interface BrushItem {
+    name: string
+    instance: Chameleon.Brush
+    sizeConfig?: boolean
+    colorConfig?: boolean
+    textureConfig?: boolean
+}
+
+interface TextureItem {
+    name: string
+    canvas: HTMLCanvasElement
+}
+
 (() => {
     function getGeometry() {
         return new THREE.CylinderGeometry(1, 1, 2);
@@ -18,92 +31,159 @@
     onresize();
     window.addEventListener('resize', onresize, false);
 
+    function setUpBrushSettingsGui(settings: any, folder: dat.GUI) {
+        settings.brush = {
+            type: null,
+            size: 15,
+            color: '#00d3e1',
+            texture: null
+        };
+
+        var loadTexture = (path: string): HTMLCanvasElement => {
+            var textureSideLength = 512;
+            var canvas = document.createElement('canvas');
+            canvas.height = canvas.width = textureSideLength;
+
+            var image = new Image();
+            image.src = path;
+            image.onload = () => {
+                canvas.getContext('2d').drawImage(image, 0, 0);
+            };
+
+            return canvas;
+        };
+        var textureItems: TextureItem[] = [
+            {
+                name: 'Grass',
+                canvas: loadTexture('image/grass_texture.jpg')
+            }, {
+                name: 'Metal',
+                canvas: loadTexture('image/metal_texture.jpg')
+            }, {
+                name: 'Rock',
+                canvas: loadTexture('image/rock_texture.jpg')
+            }, {
+                name: 'Black Leather',
+                canvas: loadTexture('image/blackleather_texture.jpg')
+            }
+        ];
+
+        var brushItems: BrushItem[] = [
+            {
+                name: 'Marker',
+                instance: new Chameleon.MarkerBrush(settings.brush.size, settings.brush.color),
+                sizeConfig: true,
+                colorConfig: true
+            }, {
+                name: 'Blurry Marker',
+                instance: new Chameleon.BlurryMarkerBrush(settings.brush.size, settings.brush.color),
+                sizeConfig: true,
+                colorConfig: true
+            }, {
+                name: 'Calligraphy',
+                instance: new Chameleon.CalligraphyBrush()
+            }, {
+                name: 'Fur',
+                instance: new Chameleon.Fur()
+            }, {
+                name: 'Thick Brush',
+                instance: new Chameleon.ThickBrush(settings.brush.size, settings.brush.color),
+                sizeConfig: true,
+                colorConfig: true
+            }, {
+                name: 'Ink Drop',
+                instance: new Chameleon.InkDropBrush(settings.brush.size, settings.brush.color),
+                sizeConfig: true,
+                colorConfig: true
+            }, {
+                name: 'Star',
+                instance: new Chameleon.StarBrush(settings.brush.size, settings.brush.color),
+                sizeConfig: true,
+                colorConfig: true
+            }, {
+                name: 'Random Star',
+                instance: new Chameleon.RandomStarBrush(settings.brush.size),
+                sizeConfig: true
+            }, {
+                name: 'Spray',
+                instance: new Chameleon.SprayBrush(settings.brush.size, settings.brush.color),
+                sizeConfig: true,
+                colorConfig: true
+            }, {
+                name: 'Texture',
+                instance: new Chameleon.TextureBrush(settings.brush.size, textureItems[0].canvas),
+                sizeConfig: true,
+                textureConfig: true
+            }
+        ];
+
+        var typeController = folder.add(settings.brush, 'type', brushItems.map((_)=>_.name)).name('Type');
+        var sizeController = folder.add(settings.brush, 'size', 1, 40).step(0.5).name('Size');
+        var colorController = folder.addColor(settings.brush, 'color').name('Color');
+        var textureController = folder.add(settings.brush, 'texture', textureItems.map((_)=>_.name)).name('Texture');
+
+        var handleSizeChange = (newSize) => chameleon.brush.radius = newSize;
+        var handleColorChange = (newColor) => {
+            if ('color' in chameleon.brush) {
+                (<any>chameleon.brush).color = newColor;
+            }
+        };
+        var handleTextureChange = (newTexture) => {
+            if (!('texture' in chameleon.brush)) {
+                return;
+            }
+            for (var i = 0; i < textureItems.length; i += 1) {
+                if (textureItems[i].name === newTexture) {
+                    (<any>chameleon.brush).texture = textureItems[i].canvas;
+                    return;
+                }
+            }
+        };
+        var handleTypeChange = (newType) => {
+            for (var i = 0; i < brushItems.length; i += 1) {
+                if (brushItems[i].name === newType) {
+                    chameleon.brush = brushItems[i].instance;
+
+                    handleSizeChange(settings.brush.size);
+                    handleColorChange(settings.brush.color);
+                    handleTextureChange(settings.brush.texture);
+
+                    sizeController.domElement.style.visibility = (brushItems[i].sizeConfig) ? 'visible' : 'collapse';
+                    colorController.domElement.style.visibility = (brushItems[i].colorConfig) ? 'visible' : 'collapse';
+                    textureController.domElement.style.visibility = (brushItems[i].textureConfig) ? 'visible' : 'collapse';
+
+                    return;
+                }
+            }
+        };
+
+        typeController.onChange(handleTypeChange);
+        sizeController.onChange(handleSizeChange);
+        colorController.onChange(handleColorChange);
+        textureController.onChange(handleTextureChange);
+
+        settings.brush.type = brushItems[0].name;
+        handleTypeChange(settings.brush.type);
+    }
+
+    function setUpGui() {
+        var settings = {};
+        var gui = new dat.GUI();
+        var brushFolder = gui.addFolder('Brush');
+        brushFolder.open();
+        setUpBrushSettingsGui(settings, brushFolder);
+    }
+
     window.onload = function () {
-        var _brushGUI = new FizzyText();
-        var _gui = new dat.GUI();
-        var _brushType = _gui.add(_brushGUI, 'brush', ['brush1', 'brush2', 'brush3', 'brush4', 'brush5', 'brush6', 'brush7', 'brush8', 'brush9', 'brush10']);
+        setUpGui();
 
+        // Render loop
+        var render = () => {
+            chameleon.update();
+            requestAnimationFrame(render);
+        };
 
-        var _f1 = _gui.addFolder("BrushSize");
-        var _brushSize = _f1.add(_brushGUI, 'size', 1, 30).min(1).step(0.5);
-        var _f2 = _gui.addFolder("Color");
-        var _brushColor = _f2.addColor(_brushGUI, 'color0');
-
-        var _f3;
-        var _textureType;
-
-        Chameleon.changeBrushType("brush1");
-        Chameleon.changeBrushSize(_brushGUI.size);
-        Chameleon.changeBrushColor(_brushGUI.color0);
-        Chameleon.changeTextureType("grass");
-        _f2.open();
-        _f1.open();
-
-        _brushType.onFinishChange(function (value) {
-
-            if ((_brushGUI.brush == "brush1" || _brushGUI.brush == "brush2" || _brushGUI.brush == "brush5" || _brushGUI.brush == "brush6" || _brushGUI.brush == "brush7" || _brushGUI.brush == "brush10") && !_gui.hasFolder("Color")) {
-                _f2 = _gui.addFolder("Color");
-                _brushColor = _f2.addColor(_brushGUI, 'color0');
-                _f2.open();
-                _brushColor.onChange(function (value) {
-                    Chameleon.changeBrushColor(_brushGUI.color0);
-                });
-            }
-            if ((_brushGUI.brush == "brush1" || _brushGUI.brush == "brush2" || _brushGUI.brush == "brush7" || _brushGUI.brush == "brush8" || _brushGUI.brush == "brush9" || _brushGUI.brush == "brush10") && !_gui.hasFolder("BrushSize")) {
-                _f1 = _gui.addFolder("BrushSize");
-                _brushSize = _f1.add(_brushGUI, 'size', 1, 30).min(1).step(0.5);
-                _f1.open();
-                _brushSize.onFinishChange(function (value) {
-                    Chameleon.changeBrushSize(_brushGUI.size);
-                });
-            }
-
-            if (_brushGUI.brush == "brush9") {
-                _f3 = _gui.addFolder("Texture");
-                _textureType = _f3.add(_brushGUI, 'textureType', ['grass', 'metal', 'rock', 'blackleather']);
-                _f3.open();
-                _textureType.onFinishChange(function (value) {
-                    Chameleon.changeTextureType(_brushGUI.textureType);
-                });
-            }
-
-            if (_brushGUI.brush == "brush3" || _brushGUI.brush == "brush4" || _brushGUI.brush == "brush8") {
-                _gui.removeFolder("Color");
-                _gui.removeFolder("BrushSize");
-            }
-            if (_brushGUI.brush == "brush5" || _brushGUI.brush == "brush6") {
-                _gui.removeFolder("BrushSize");
-            }
-            if (_brushGUI.brush == "brush9") {
-                _gui.removeFolder("Color");
-            }
-            if (_brushGUI.brush != "brush9") {
-                _gui.removeFolder("Texture");
-            }
-
-            Chameleon.changeBrushType(_brushGUI.brush);
-
-        });
-        _brushSize.onFinishChange(function (value) {
-            Chameleon.changeBrushSize(_brushGUI.size);
-        });
-        _brushColor.onChange(function (value) {
-            Chameleon.changeBrushColor(_brushGUI.color0);
-        });
+        render();
     };
-
-    // Render loop
-    var render = () => {
-        chameleon.update();
-        requestAnimationFrame(render);
-    };
-
-    render();
 })();
 
-var FizzyText = function () {
-    this.brush = 'brush';
-    this.textureType = 'textureType';
-    this.size = 15;
-    this.color0 = "#9b0000";
-};

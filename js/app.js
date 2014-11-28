@@ -538,26 +538,6 @@ var Chameleon;
 /// <reference path="./common.ts" />
 var Chameleon;
 (function (Chameleon) {
-    Chameleon._brushSize;
-    Chameleon._brushType;
-    Chameleon._brushColor;
-    Chameleon._brushTexture;
-    function changeBrushSize(_size) {
-        Chameleon._brushSize = _size;
-    }
-    Chameleon.changeBrushSize = changeBrushSize;
-    function changeBrushType(_type) {
-        Chameleon._brushType = _type;
-    }
-    Chameleon.changeBrushType = changeBrushType;
-    function changeBrushColor(_color) {
-        Chameleon._brushColor = _color;
-    }
-    Chameleon.changeBrushColor = changeBrushColor;
-    function changeTextureType(_texture) {
-        Chameleon._brushTexture = _texture;
-    }
-    Chameleon.changeTextureType = changeTextureType;
     var Pencil = (function () {
         function Pencil() {
             this._canvasContext = null;
@@ -590,15 +570,13 @@ var Chameleon;
         return Pencil;
     })();
     Chameleon.Pencil = Pencil;
-    var Marker = (function () {
-        function Marker(radius, color) {
-            if (radius === void 0) { radius = Chameleon._brushSize; }
-            if (color === void 0) { color = Chameleon._brushColor; }
+    var MarkerBrush = (function () {
+        function MarkerBrush(radius, color) {
             this.radius = radius;
             this.color = color;
             this._canvasContext = null;
         }
-        Marker.prototype.startStroke = function (canvas, position) {
+        MarkerBrush.prototype.startStroke = function (canvas, position) {
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
@@ -607,30 +585,28 @@ var Chameleon;
             this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
             this._canvasContext.moveTo(position.x, position.y);
         };
-        Marker.prototype.continueStoke = function (position) {
+        MarkerBrush.prototype.continueStoke = function (position) {
             if (this._canvasContext) {
                 this._canvasContext.lineTo(position.x, position.y);
                 this._canvasContext.stroke();
             }
         };
-        Marker.prototype.finishStroke = function () {
+        MarkerBrush.prototype.finishStroke = function () {
             if (this._canvasContext) {
                 this._canvasContext.restore();
                 this._canvasContext = null;
             }
         };
-        return Marker;
+        return MarkerBrush;
     })();
-    Chameleon.Marker = Marker;
-    var BlurryMarker = (function () {
-        function BlurryMarker(radius, color) {
-            if (radius === void 0) { radius = Chameleon._brushSize; }
-            if (color === void 0) { color = Chameleon._brushColor; }
+    Chameleon.MarkerBrush = MarkerBrush;
+    var BlurryMarkerBrush = (function () {
+        function BlurryMarkerBrush(radius, color) {
             this.radius = radius;
             this.color = color;
             this._canvasContext = null;
         }
-        BlurryMarker.prototype.startStroke = function (canvas, position) {
+        BlurryMarkerBrush.prototype.startStroke = function (canvas, position) {
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
@@ -641,27 +617,26 @@ var Chameleon;
             this._canvasContext.shadowColor = this.color;
             this._canvasContext.moveTo(position.x, position.y);
         };
-        BlurryMarker.prototype.continueStoke = function (position) {
+        BlurryMarkerBrush.prototype.continueStoke = function (position) {
             if (this._canvasContext) {
                 this._canvasContext.lineTo(position.x, position.y);
                 this._canvasContext.stroke();
             }
         };
-        BlurryMarker.prototype.finishStroke = function () {
+        BlurryMarkerBrush.prototype.finishStroke = function () {
             if (this._canvasContext) {
                 this._canvasContext.restore();
                 this._canvasContext = null;
             }
         };
-        return BlurryMarker;
+        return BlurryMarkerBrush;
     })();
-    Chameleon.BlurryMarker = BlurryMarker;
+    Chameleon.BlurryMarkerBrush = BlurryMarkerBrush;
     var CalligraphyBrush = (function () {
         function CalligraphyBrush() {
             this.img = new Image();
             this._canvasContext = null;
             this._lastPosition = new THREE.Vector2();
-            this._pencilSize = Chameleon._brushSize;
         }
         Object.defineProperty(CalligraphyBrush.prototype, "radius", {
             get: function () {
@@ -747,27 +722,19 @@ var Chameleon;
         return Fur;
     })();
     Chameleon.Fur = Fur;
-    // TODO make size adjustable
     var ThickBrush = (function () {
-        function ThickBrush(color) {
-            if (color === void 0) { color = Chameleon._brushColor; }
+        function ThickBrush(radius, color) {
+            this.radius = radius;
             this.color = color;
             this._canvasContext = null;
-            this._pencilSize = 3;
+            this._LINE_WIDTH = 3;
             this._lastPosition = new THREE.Vector2();
         }
-        Object.defineProperty(ThickBrush.prototype, "radius", {
-            get: function () {
-                return 15;
-            },
-            enumerable: true,
-            configurable: true
-        });
         ThickBrush.prototype.startStroke = function (canvas, position) {
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
-            this._canvasContext.lineWidth = this._pencilSize;
+            this._canvasContext.lineWidth = this.radius / 10;
             this._canvasContext.strokeStyle = this.color;
             this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
             this._lastPosition.copy(position);
@@ -776,21 +743,11 @@ var Chameleon;
             if (this._canvasContext) {
                 this._canvasContext.beginPath();
                 this._canvasContext.globalAlpha = 0.85;
-                this._canvasContext.moveTo(this._lastPosition.x, this._lastPosition.y);
-                this._canvasContext.lineTo(position.x, position.y);
-                this._canvasContext.stroke();
-                this._canvasContext.moveTo(this._lastPosition.x - 4, this._lastPosition.y - 4);
-                this._canvasContext.lineTo(position.x - 4, position.y - 4);
-                this._canvasContext.stroke();
-                this._canvasContext.moveTo(this._lastPosition.x - 2, this._lastPosition.y - 2);
-                this._canvasContext.lineTo(position.x - 2, position.y - 2);
-                this._canvasContext.stroke();
-                this._canvasContext.moveTo(this._lastPosition.x + 2, this._lastPosition.y + 2);
-                this._canvasContext.lineTo(position.x + 2, position.y + 2);
-                this._canvasContext.stroke();
-                this._canvasContext.moveTo(this._lastPosition.x + 4, this._lastPosition.y + 4);
-                this._canvasContext.lineTo(position.x + 4, position.y + 4);
-                this._canvasContext.stroke();
+                for (var i = -this.radius * 0.45; i <= this.radius * 0.45; i += this.radius / 20) {
+                    this._canvasContext.moveTo(this._lastPosition.x + i, this._lastPosition.y + i);
+                    this._canvasContext.lineTo(position.x + i, position.y + i);
+                    this._canvasContext.stroke();
+                }
                 this._lastPosition.copy(position);
             }
         };
@@ -803,57 +760,50 @@ var Chameleon;
         return ThickBrush;
     })();
     Chameleon.ThickBrush = ThickBrush;
-    // TODO make radius adjustable
-    var InkDrop = (function () {
-        function InkDrop(color) {
-            if (color === void 0) { color = Chameleon._brushColor; }
-            this.color = color;
-            this._canvasContext = null;
-        }
-        Object.defineProperty(InkDrop.prototype, "radius", {
-            get: function () {
-                return 40;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        InkDrop.prototype.drawDrop = function (position) {
-            this._canvasContext.beginPath();
-            this._canvasContext.globalAlpha = Math.random();
-            this._canvasContext.arc(position.x, position.y, Chameleon.getRandomInt(10, 30), 30, 270, false);
-            this._canvasContext.fill();
-        };
-        InkDrop.prototype.startStroke = function (canvas, position) {
-            this._canvasContext = canvas.getContext('2d');
-            this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
-            this._canvasContext.fillStyle = this.color;
-            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
-            this.drawDrop(position);
-        };
-        InkDrop.prototype.continueStoke = function (position) {
-            if (this._canvasContext) {
-                this.drawDrop(position);
-            }
-        };
-        InkDrop.prototype.finishStroke = function () {
-            if (this._canvasContext) {
-                this._canvasContext.restore();
-                this._canvasContext = null;
-            }
-        };
-        return InkDrop;
-    })();
-    Chameleon.InkDrop = InkDrop;
-    var Star = (function () {
-        function Star(radius, color) {
-            if (radius === void 0) { radius = Chameleon._brushSize; }
-            if (color === void 0) { color = Chameleon._brushColor; }
+    var InkDropBrush = (function () {
+        function InkDropBrush(radius, color) {
             this.radius = radius;
             this.color = color;
             this._canvasContext = null;
             this._lastPosition = new THREE.Vector2();
         }
-        Star.prototype.drawStar = function (position, angle) {
+        InkDropBrush.prototype.drawDrop = function (position) {
+            this._canvasContext.beginPath();
+            this._canvasContext.globalAlpha = Math.random();
+            this._canvasContext.arc(position.x, position.y, Chameleon.getRandomInt(this.radius / 3, this.radius), 30, 270, false);
+            this._canvasContext.fill();
+        };
+        InkDropBrush.prototype.startStroke = function (canvas, position) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
+            this._canvasContext.fillStyle = this.color;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this._lastPosition.copy(position);
+            this.drawDrop(position);
+        };
+        InkDropBrush.prototype.continueStoke = function (position) {
+            if (this._canvasContext && position.distanceTo(this._lastPosition) > this.radius * 2 / 3) {
+                this._lastPosition.copy(position);
+                this.drawDrop(position);
+            }
+        };
+        InkDropBrush.prototype.finishStroke = function () {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+            }
+        };
+        return InkDropBrush;
+    })();
+    Chameleon.InkDropBrush = InkDropBrush;
+    var StarBrush = (function () {
+        function StarBrush(radius, color) {
+            this.radius = radius;
+            this.color = color;
+            this._canvasContext = null;
+            this._lastPosition = new THREE.Vector2();
+        }
+        StarBrush.prototype.drawStar = function (position, angle) {
             var length = this.radius / 3.5;
             var x = position.x, y = position.y;
             this._canvasContext.save();
@@ -873,7 +823,7 @@ var Chameleon;
             this._canvasContext.stroke();
             this._canvasContext.restore();
         };
-        Star.prototype.startStroke = function (canvas, position) {
+        StarBrush.prototype.startStroke = function (canvas, position) {
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.save();
             this._canvasContext.strokeStyle = this.color;
@@ -881,35 +831,29 @@ var Chameleon;
             this.drawStar(position, Chameleon.getRandomInt(0, 180));
             this._lastPosition.copy(position);
         };
-        Star.prototype.continueStoke = function (position) {
+        StarBrush.prototype.continueStoke = function (position) {
             if (this._canvasContext && this._lastPosition.distanceTo(position) > this.radius) {
                 this.drawStar(position, Chameleon.getRandomInt(0, 180));
                 this._lastPosition.copy(position);
             }
         };
-        Star.prototype.finishStroke = function () {
+        StarBrush.prototype.finishStroke = function () {
             if (this._canvasContext) {
                 this._canvasContext.restore();
                 this._canvasContext = null;
             }
         };
-        return Star;
+        return StarBrush;
     })();
-    Chameleon.Star = Star;
-    // TODO make brush size adjustable
-    var RandomStar = (function () {
-        function RandomStar() {
+    Chameleon.StarBrush = StarBrush;
+    var RandomStarBrush = (function () {
+        function RandomStarBrush(radius) {
+            this.radius = radius;
             this._canvasContext = null;
+            this._lastPosition = new THREE.Vector2();
         }
-        Object.defineProperty(RandomStar.prototype, "radius", {
-            get: function () {
-                return 40;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        RandomStar.prototype.drawStar = function (position) {
-            var angle = Chameleon.getRandomInt(0, 180), width = Chameleon.getRandomInt(1, 10), opacity = Math.random(), scale = Chameleon.getRandomInt(5, 20) / 20, color = ('rgb(' + Chameleon.getRandomInt(0, 255) + ',' + Chameleon.getRandomInt(0, 255) + ',' + Chameleon.getRandomInt(0, 255) + ')'), length = 15;
+        RandomStarBrush.prototype.drawStar = function (position) {
+            var angle = Chameleon.getRandomInt(0, 180), width = Chameleon.getRandomInt(1, 10), opacity = Math.random(), scale = Chameleon.getRandomInt(5, 20) / 20, color = ('rgb(' + Chameleon.getRandomInt(0, 255) + ',' + Chameleon.getRandomInt(0, 255) + ',' + Chameleon.getRandomInt(0, 255) + ')'), length = this.radius / 3.5;
             this._canvasContext.save();
             this._canvasContext.translate(position.x, position.y);
             this._canvasContext.beginPath();
@@ -931,58 +875,73 @@ var Chameleon;
             this._canvasContext.stroke();
             this._canvasContext.restore();
         };
-        RandomStar.prototype.startStroke = function (canvas, position) {
+        RandomStarBrush.prototype.startStroke = function (canvas, position) {
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.save();
+            this._lastPosition.copy(position);
             this.drawStar(position);
         };
-        RandomStar.prototype.continueStoke = function (position) {
-            if (this._canvasContext) {
+        RandomStarBrush.prototype.continueStoke = function (position) {
+            if (this._canvasContext && position.distanceTo(this._lastPosition) > this.radius * 2 / 3) {
+                this._lastPosition.copy(position);
                 this.drawStar(position);
             }
         };
-        RandomStar.prototype.finishStroke = function () {
+        RandomStarBrush.prototype.finishStroke = function () {
             if (this._canvasContext) {
                 this._canvasContext.restore();
                 this._canvasContext = null;
             }
         };
-        return RandomStar;
+        return RandomStarBrush;
     })();
-    Chameleon.RandomStar = RandomStar;
-    var TextureBrush = (function () {
-        function TextureBrush(radius) {
-            if (radius === void 0) { radius = Chameleon._brushSize; }
+    Chameleon.RandomStarBrush = RandomStarBrush;
+    var SprayBrush = (function () {
+        function SprayBrush(radius, color) {
             this.radius = radius;
-            this.img = new Image();
+            this.color = color;
             this._canvasContext = null;
-            this._pencilTexture = Chameleon._brushTexture;
+            this._density = 70;
         }
-        TextureBrush.prototype.getPattern = function () {
-            var patternCanvas = document.createElement('canvas'), dotWidth = 512, patternCtx = patternCanvas.getContext('2d');
-            patternCanvas.width = patternCanvas.height = dotWidth;
-            if (this._pencilTexture == "grass") {
-                this.img.src = 'image/grass_texture.jpg';
-            }
-            if (this._pencilTexture == "metal") {
-                this.img.src = 'image/metal_texture.jpg';
-            }
-            if (this._pencilTexture == "rock") {
-                this.img.src = 'image/rock_texture.jpg';
-            }
-            if (this._pencilTexture == "blackleather") {
-                this.img.src = 'image/blackleather_texture.jpg';
-            }
-            patternCtx.drawImage(this.img, 0, 0);
-            return this._canvasContext.createPattern(patternCanvas, 'repeat');
+        SprayBrush.prototype.startStroke = function (canvas, position) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.beginPath();
+            this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
+            this._canvasContext.fillStyle = this.color;
         };
+        SprayBrush.prototype.continueStoke = function (position) {
+            if (this._canvasContext) {
+                for (var i = this._density; i--;) {
+                    var dotRadius = Chameleon.getRandomFloat(0, this.radius);
+                    var angle = Chameleon.getRandomFloat(0, Math.PI * 2);
+                    var dotWidth = Chameleon.getRandomFloat(1, 2);
+                    this._canvasContext.globalAlpha = Math.random();
+                    this._canvasContext.fillRect(position.x + dotRadius * Math.cos(angle), position.y + dotRadius * Math.sin(angle), dotWidth, dotWidth);
+                }
+            }
+        };
+        SprayBrush.prototype.finishStroke = function () {
+            if (this._canvasContext) {
+                this._canvasContext.restore();
+                this._canvasContext = null;
+            }
+        };
+        return SprayBrush;
+    })();
+    Chameleon.SprayBrush = SprayBrush;
+    var TextureBrush = (function () {
+        function TextureBrush(radius, texture) {
+            this.radius = radius;
+            this.texture = texture;
+            this._canvasContext = null;
+        }
         TextureBrush.prototype.startStroke = function (canvas, position) {
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
             this._canvasContext.lineWidth = this.radius;
             this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
-            this._canvasContext.strokeStyle = this.getPattern(); // TODO
+            this._canvasContext.strokeStyle = this._canvasContext.createPattern(this.texture, 'repeat');
             this._canvasContext.moveTo(position.x, position.y);
         };
         TextureBrush.prototype.continueStoke = function (position) {
@@ -1002,41 +961,6 @@ var Chameleon;
         return TextureBrush;
     })();
     Chameleon.TextureBrush = TextureBrush;
-    var Spray = (function () {
-        function Spray(radius, color) {
-            if (radius === void 0) { radius = Chameleon._brushSize; }
-            if (color === void 0) { color = Chameleon._brushColor; }
-            this.radius = radius;
-            this.color = color;
-            this._canvasContext = null;
-            this._density = 70;
-        }
-        Spray.prototype.startStroke = function (canvas, position) {
-            this._canvasContext = canvas.getContext('2d');
-            this._canvasContext.beginPath();
-            this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
-            this._canvasContext.fillStyle = this.color;
-        };
-        Spray.prototype.continueStoke = function (position) {
-            if (this._canvasContext) {
-                for (var i = this._density; i--;) {
-                    var dotRadius = Chameleon.getRandomFloat(0, this.radius);
-                    var angle = Chameleon.getRandomFloat(0, Math.PI * 2);
-                    var dotWidth = Chameleon.getRandomFloat(1, 2);
-                    this._canvasContext.globalAlpha = Math.random();
-                    this._canvasContext.fillRect(position.x + dotRadius * Math.cos(angle), position.y + dotRadius * Math.sin(angle), dotWidth, dotWidth);
-                }
-            }
-        };
-        Spray.prototype.finishStroke = function () {
-            if (this._canvasContext) {
-                this._canvasContext.restore();
-                this._canvasContext = null;
-            }
-        };
-        return Spray;
-    })();
-    Chameleon.Spray = Spray;
 })(Chameleon || (Chameleon = {}));
 /// <reference path="./common.ts" />
 /// <reference path="./camera-controls.ts" />
@@ -1076,7 +1000,7 @@ var Chameleon;
                 renderer.setClearColor(0xAAAAAA, 1.0);
                 return renderer;
             })();
-            this.brush = new Chameleon.Marker();
+            this.brush = new Chameleon.Pencil();
             this._mousedown = function (event) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -1093,36 +1017,6 @@ var Chameleon;
                     _this._state = 1 /* Draw */;
                     _this._useDrawingTexture();
                     var pos = Chameleon.mousePositionInCanvas(event, _this.canvasBox);
-                    if (Chameleon._brushType == "brush1") {
-                        _this.brush = new Chameleon.Marker();
-                    }
-                    if (Chameleon._brushType == "brush2") {
-                        _this.brush = new Chameleon.BlurryMarker();
-                    }
-                    if (Chameleon._brushType == "brush3") {
-                        _this.brush = new Chameleon.CalligraphyBrush();
-                    }
-                    if (Chameleon._brushType == "brush4") {
-                        _this.brush = new Chameleon.Fur();
-                    }
-                    if (Chameleon._brushType == "brush5") {
-                        _this.brush = new Chameleon.ThickBrush();
-                    }
-                    if (Chameleon._brushType == "brush6") {
-                        _this.brush = new Chameleon.InkDrop();
-                    }
-                    if (Chameleon._brushType == "brush7") {
-                        _this.brush = new Chameleon.Star();
-                    }
-                    if (Chameleon._brushType == "brush8") {
-                        _this.brush = new Chameleon.RandomStar();
-                    }
-                    if (Chameleon._brushType == "brush9") {
-                        _this.brush = new Chameleon.TextureBrush();
-                    }
-                    if (Chameleon._brushType == "brush10") {
-                        _this.brush = new Chameleon.Spray();
-                    }
                     _this.brush.startStroke(_this._textureManager.drawingCanvas, pos);
                     _this._textureManager.onStrokePainted(pos, _this.brush.radius);
                 }
@@ -1235,6 +1129,7 @@ var Chameleon;
     Chameleon.Controls = Controls;
 })(Chameleon || (Chameleon = {}));
 /// <reference path="./chameleon/controls.ts" />
+/// <reference path="./chameleon/brushes.ts" />
 var Chameleon;
 (function (Chameleon) {
     function create(geometry, canvas) {
@@ -1258,79 +1153,155 @@ var Chameleon;
     };
     onresize();
     window.addEventListener('resize', onresize, false);
+    function setUpBrushSettingsGui(settings, folder) {
+        settings.brush = {
+            type: null,
+            size: 15,
+            color: '#00d3e1',
+            texture: null
+        };
+        var loadTexture = function (path) {
+            var textureSideLength = 512;
+            var canvas = document.createElement('canvas');
+            canvas.height = canvas.width = textureSideLength;
+            var image = new Image();
+            image.src = path;
+            image.onload = function () {
+                canvas.getContext('2d').drawImage(image, 0, 0);
+            };
+            return canvas;
+        };
+        var textureItems = [
+            {
+                name: 'Grass',
+                canvas: loadTexture('image/grass_texture.jpg')
+            },
+            {
+                name: 'Metal',
+                canvas: loadTexture('image/metal_texture.jpg')
+            },
+            {
+                name: 'Rock',
+                canvas: loadTexture('image/rock_texture.jpg')
+            },
+            {
+                name: 'Black Leather',
+                canvas: loadTexture('image/blackleather_texture.jpg')
+            }
+        ];
+        var brushItems = [
+            {
+                name: 'Marker',
+                instance: new Chameleon.MarkerBrush(settings.brush.size, settings.brush.color),
+                sizeConfig: true,
+                colorConfig: true
+            },
+            {
+                name: 'Blurry Marker',
+                instance: new Chameleon.BlurryMarkerBrush(settings.brush.size, settings.brush.color),
+                sizeConfig: true,
+                colorConfig: true
+            },
+            {
+                name: 'Calligraphy',
+                instance: new Chameleon.CalligraphyBrush()
+            },
+            {
+                name: 'Fur',
+                instance: new Chameleon.Fur()
+            },
+            {
+                name: 'Thick Brush',
+                instance: new Chameleon.ThickBrush(settings.brush.size, settings.brush.color),
+                sizeConfig: true,
+                colorConfig: true
+            },
+            {
+                name: 'Ink Drop',
+                instance: new Chameleon.InkDropBrush(settings.brush.size, settings.brush.color),
+                sizeConfig: true,
+                colorConfig: true
+            },
+            {
+                name: 'Star',
+                instance: new Chameleon.StarBrush(settings.brush.size, settings.brush.color),
+                sizeConfig: true,
+                colorConfig: true
+            },
+            {
+                name: 'Random Star',
+                instance: new Chameleon.RandomStarBrush(settings.brush.size),
+                sizeConfig: true
+            },
+            {
+                name: 'Spray',
+                instance: new Chameleon.SprayBrush(settings.brush.size, settings.brush.color),
+                sizeConfig: true,
+                colorConfig: true
+            },
+            {
+                name: 'Texture',
+                instance: new Chameleon.TextureBrush(settings.brush.size, textureItems[0].canvas),
+                sizeConfig: true,
+                textureConfig: true
+            }
+        ];
+        var typeController = folder.add(settings.brush, 'type', brushItems.map(function (_) { return _.name; })).name('Type');
+        var sizeController = folder.add(settings.brush, 'size', 1, 40).step(0.5).name('Size');
+        var colorController = folder.addColor(settings.brush, 'color').name('Color');
+        var textureController = folder.add(settings.brush, 'texture', textureItems.map(function (_) { return _.name; })).name('Texture');
+        var handleSizeChange = function (newSize) { return chameleon.brush.radius = newSize; };
+        var handleColorChange = function (newColor) {
+            if ('color' in chameleon.brush) {
+                chameleon.brush.color = newColor;
+            }
+        };
+        var handleTextureChange = function (newTexture) {
+            if (!('texture' in chameleon.brush)) {
+                return;
+            }
+            for (var i = 0; i < textureItems.length; i += 1) {
+                if (textureItems[i].name === newTexture) {
+                    chameleon.brush.texture = textureItems[i].canvas;
+                    return;
+                }
+            }
+        };
+        var handleTypeChange = function (newType) {
+            for (var i = 0; i < brushItems.length; i += 1) {
+                if (brushItems[i].name === newType) {
+                    chameleon.brush = brushItems[i].instance;
+                    handleSizeChange(settings.brush.size);
+                    handleColorChange(settings.brush.color);
+                    handleTextureChange(settings.brush.texture);
+                    sizeController.domElement.style.visibility = (brushItems[i].sizeConfig) ? 'visible' : 'collapse';
+                    colorController.domElement.style.visibility = (brushItems[i].colorConfig) ? 'visible' : 'collapse';
+                    textureController.domElement.style.visibility = (brushItems[i].textureConfig) ? 'visible' : 'collapse';
+                    return;
+                }
+            }
+        };
+        typeController.onChange(handleTypeChange);
+        sizeController.onChange(handleSizeChange);
+        colorController.onChange(handleColorChange);
+        textureController.onChange(handleTextureChange);
+        settings.brush.type = brushItems[0].name;
+        handleTypeChange(settings.brush.type);
+    }
+    function setUpGui() {
+        var settings = {};
+        var gui = new dat.GUI();
+        var brushFolder = gui.addFolder('Brush');
+        brushFolder.open();
+        setUpBrushSettingsGui(settings, brushFolder);
+    }
     window.onload = function () {
-        var _brushGUI = new FizzyText();
-        var _gui = new dat.GUI();
-        var _brushType = _gui.add(_brushGUI, 'brush', ['brush1', 'brush2', 'brush3', 'brush4', 'brush5', 'brush6', 'brush7', 'brush8', 'brush9', 'brush10']);
-        var _f1 = _gui.addFolder("BrushSize");
-        var _brushSize = _f1.add(_brushGUI, 'size', 1, 30).min(1).step(0.5);
-        var _f2 = _gui.addFolder("Color");
-        var _brushColor = _f2.addColor(_brushGUI, 'color0');
-        var _f3;
-        var _textureType;
-        Chameleon.changeBrushType("brush1");
-        Chameleon.changeBrushSize(_brushGUI.size);
-        Chameleon.changeBrushColor(_brushGUI.color0);
-        Chameleon.changeTextureType("grass");
-        _f2.open();
-        _f1.open();
-        _brushType.onFinishChange(function (value) {
-            if ((_brushGUI.brush == "brush1" || _brushGUI.brush == "brush2" || _brushGUI.brush == "brush5" || _brushGUI.brush == "brush6" || _brushGUI.brush == "brush7" || _brushGUI.brush == "brush10") && !_gui.hasFolder("Color")) {
-                _f2 = _gui.addFolder("Color");
-                _brushColor = _f2.addColor(_brushGUI, 'color0');
-                _f2.open();
-                _brushColor.onChange(function (value) {
-                    Chameleon.changeBrushColor(_brushGUI.color0);
-                });
-            }
-            if ((_brushGUI.brush == "brush1" || _brushGUI.brush == "brush2" || _brushGUI.brush == "brush7" || _brushGUI.brush == "brush8" || _brushGUI.brush == "brush9" || _brushGUI.brush == "brush10") && !_gui.hasFolder("BrushSize")) {
-                _f1 = _gui.addFolder("BrushSize");
-                _brushSize = _f1.add(_brushGUI, 'size', 1, 30).min(1).step(0.5);
-                _f1.open();
-                _brushSize.onFinishChange(function (value) {
-                    Chameleon.changeBrushSize(_brushGUI.size);
-                });
-            }
-            if (_brushGUI.brush == "brush9") {
-                _f3 = _gui.addFolder("Texture");
-                _textureType = _f3.add(_brushGUI, 'textureType', ['grass', 'metal', 'rock', 'blackleather']);
-                _f3.open();
-                _textureType.onFinishChange(function (value) {
-                    Chameleon.changeTextureType(_brushGUI.textureType);
-                });
-            }
-            if (_brushGUI.brush == "brush3" || _brushGUI.brush == "brush4" || _brushGUI.brush == "brush8") {
-                _gui.removeFolder("Color");
-                _gui.removeFolder("BrushSize");
-            }
-            if (_brushGUI.brush == "brush5" || _brushGUI.brush == "brush6") {
-                _gui.removeFolder("BrushSize");
-            }
-            if (_brushGUI.brush == "brush9") {
-                _gui.removeFolder("Color");
-            }
-            if (_brushGUI.brush != "brush9") {
-                _gui.removeFolder("Texture");
-            }
-            Chameleon.changeBrushType(_brushGUI.brush);
-        });
-        _brushSize.onFinishChange(function (value) {
-            Chameleon.changeBrushSize(_brushGUI.size);
-        });
-        _brushColor.onChange(function (value) {
-            Chameleon.changeBrushColor(_brushGUI.color0);
-        });
+        setUpGui();
+        // Render loop
+        var render = function () {
+            chameleon.update();
+            requestAnimationFrame(render);
+        };
+        render();
     };
-    // Render loop
-    var render = function () {
-        chameleon.update();
-        requestAnimationFrame(render);
-    };
-    render();
 })();
-var FizzyText = function () {
-    this.brush = 'brush';
-    this.textureType = 'textureType';
-    this.size = 15;
-    this.color0 = "#9b0000";
-};

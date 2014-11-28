@@ -1,26 +1,6 @@
 /// <reference path="./common.ts" />
 
 module Chameleon {
-    export var _brushSize;
-    export var _brushType;
-    export var _brushColor;
-    export var _brushTexture;
-
-    export function changeBrushSize(_size: number) {
-        _brushSize = _size;
-    }
-
-    export function changeBrushType(_type) {
-        _brushType = _type;
-    }
-
-    export function changeBrushColor(_color) {
-        _brushColor = _color;
-    }
-
-    export function changeTextureType(_texture) {
-        _brushTexture = _texture;
-    }
 
     export interface Brush {
         radius: number;
@@ -59,7 +39,7 @@ module Chameleon {
         }
     }
 
-    export class Marker implements Brush {
+    export class MarkerBrush implements Brush {
         private _canvasContext: CanvasRenderingContext2D = null;
 
         startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
@@ -87,12 +67,12 @@ module Chameleon {
             }
         }
 
-        constructor(public radius: number = _brushSize,
-                    public color: string = _brushColor) {
+        constructor(public radius: number,
+                    public color: string) {
         }
     }
 
-    export class BlurryMarker implements Brush {
+    export class BlurryMarkerBrush implements Brush {
         private _canvasContext: CanvasRenderingContext2D = null;
 
         startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
@@ -122,8 +102,8 @@ module Chameleon {
             }
         }
 
-        constructor(public radius: number = _brushSize,
-                    public color: string = _brushColor) {
+        constructor(public radius: number,
+                    public color: string) {
         }
     }
 
@@ -135,8 +115,6 @@ module Chameleon {
         private img = new Image();
 
         private _canvasContext: CanvasRenderingContext2D = null;
-        private _pencilSize;
-
         private _lastPosition = new THREE.Vector2();
 
         startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
@@ -168,10 +146,6 @@ module Chameleon {
                 this._canvasContext.restore();
                 this._canvasContext = null;
             }
-        }
-
-        constructor() {
-            this._pencilSize = _brushSize;
         }
     }
 
@@ -221,19 +195,11 @@ module Chameleon {
                 this._canvasContext = null;
             }
         }
-
-        constructor() {
-        }
     }
 
-    // TODO make size adjustable
     export class ThickBrush implements Brush {
-        get radius(): number {
-            return 15;
-        }
-
         private _canvasContext: CanvasRenderingContext2D = null;
-        private _pencilSize = 3;
+        private _LINE_WIDTH = 3;
         private _lastPosition = new THREE.Vector2();
 
         startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
@@ -241,7 +207,7 @@ module Chameleon {
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
 
-            this._canvasContext.lineWidth = this._pencilSize;
+            this._canvasContext.lineWidth = this.radius / 10;
             this._canvasContext.strokeStyle = this.color;
             this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
             this._lastPosition.copy(position);
@@ -251,25 +217,12 @@ module Chameleon {
             if (this._canvasContext) {
                 this._canvasContext.beginPath();
                 this._canvasContext.globalAlpha = 0.85;
-                this._canvasContext.moveTo(this._lastPosition.x, this._lastPosition.y);
-                this._canvasContext.lineTo(position.x, position.y);
-                this._canvasContext.stroke();
 
-                this._canvasContext.moveTo(this._lastPosition.x - 4, this._lastPosition.y - 4);
-                this._canvasContext.lineTo(position.x - 4, position.y - 4);
-                this._canvasContext.stroke();
-
-                this._canvasContext.moveTo(this._lastPosition.x - 2, this._lastPosition.y - 2);
-                this._canvasContext.lineTo(position.x - 2, position.y - 2);
-                this._canvasContext.stroke();
-
-                this._canvasContext.moveTo(this._lastPosition.x + 2, this._lastPosition.y + 2);
-                this._canvasContext.lineTo(position.x + 2, position.y + 2);
-                this._canvasContext.stroke();
-
-                this._canvasContext.moveTo(this._lastPosition.x + 4, this._lastPosition.y + 4);
-                this._canvasContext.lineTo(position.x + 4, position.y + 4);
-                this._canvasContext.stroke();
+                for (var i = -this.radius * 0.45; i <= this.radius * 0.45; i += this.radius / 20) {
+                    this._canvasContext.moveTo(this._lastPosition.x + i, this._lastPosition.y + i);
+                    this._canvasContext.lineTo(position.x + i, position.y + i);
+                    this._canvasContext.stroke();
+                }
 
                 this._lastPosition.copy(position);
             }
@@ -282,24 +235,21 @@ module Chameleon {
             }
         }
 
-        constructor(public color: string = _brushColor) {
+        constructor(public radius: number,
+                    public color: string) {
         }
     }
 
-    // TODO make radius adjustable
-    export class InkDrop implements Brush {
-        get radius(): number {
-            return 40;
-        }
-
+    export class InkDropBrush implements Brush {
         private _canvasContext: CanvasRenderingContext2D = null;
+        private _lastPosition = new THREE.Vector2();
 
         drawDrop(position: THREE.Vector2) {
             this._canvasContext.beginPath();
             this._canvasContext.globalAlpha = Math.random();
             this._canvasContext.arc(
                 position.x, position.y,
-                getRandomInt(10, 30),
+                getRandomInt(this.radius / 3, this.radius),
                 30, 270, false
             );
             this._canvasContext.fill();
@@ -311,11 +261,13 @@ module Chameleon {
 
             this._canvasContext.fillStyle = this.color;
             this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this._lastPosition.copy(position);
             this.drawDrop(position);
         }
 
         continueStoke(position: THREE.Vector2) {
-            if (this._canvasContext) {
+            if (this._canvasContext && position.distanceTo(this._lastPosition) > this.radius * 2 / 3) {
+                this._lastPosition.copy(position);
                 this.drawDrop(position);
             }
         }
@@ -327,11 +279,12 @@ module Chameleon {
             }
         }
 
-        constructor(public color: string = _brushColor) {
+        constructor(public radius: number,
+                    public color: string) {
         }
     }
 
-    export class Star implements Brush {
+    export class StarBrush implements Brush {
         private _canvasContext: CanvasRenderingContext2D = null;
         private _lastPosition: THREE.Vector2 = new THREE.Vector2();
 
@@ -379,18 +332,14 @@ module Chameleon {
             }
         }
 
-        constructor(public radius = _brushSize,
-                    public color = _brushColor) {
+        constructor(public radius: number,
+                    public color: string) {
         }
     }
 
-    // TODO make brush size adjustable
-    export class RandomStar implements Brush {
-        get radius(): number {
-            return 40;
-        }
-
+    export class RandomStarBrush implements Brush {
         private _canvasContext: CanvasRenderingContext2D = null;
+        private _lastPosition: THREE.Vector2 = new THREE.Vector2();
 
         drawStar(position: THREE.Vector2) {
             var angle = getRandomInt(0, 180),
@@ -398,7 +347,7 @@ module Chameleon {
                 opacity = Math.random(),
                 scale = getRandomInt(5, 20) / 20,
                 color = ('rgb(' + getRandomInt(0, 255) + ',' + getRandomInt(0, 255) + ',' + getRandomInt(0, 255) + ')'),
-                length = 15;
+                length = this.radius / 3.5;
 
             this._canvasContext.save();
             this._canvasContext.translate(position.x, position.y);
@@ -425,11 +374,13 @@ module Chameleon {
         startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.save();
+            this._lastPosition.copy(position);
             this.drawStar(position);
         }
 
         continueStoke(position: THREE.Vector2) {
-            if (this._canvasContext) {
+            if (this._canvasContext && position.distanceTo(this._lastPosition) > this.radius * 2 / 3) {
+                this._lastPosition.copy(position);
                 this.drawStar(position);
             }
         }
@@ -441,73 +392,11 @@ module Chameleon {
             }
         }
 
-        constructor() {
+        constructor(public radius: number) {
         }
     }
 
-    export class TextureBrush implements Brush {
-        private img = new Image();
-        private _canvasContext: CanvasRenderingContext2D = null;
-        private _pencilTexture;
-        private lastPoint;
-
-        getPattern() {
-            var patternCanvas = document.createElement('canvas'),
-                dotWidth = 512,
-                patternCtx = patternCanvas.getContext('2d');
-
-            patternCanvas.width = patternCanvas.height = dotWidth;
-
-            if (this._pencilTexture == "grass") {
-                this.img.src = 'image/grass_texture.jpg'
-            }
-            if (this._pencilTexture == "metal") {
-                this.img.src = 'image/metal_texture.jpg'
-            }
-            if (this._pencilTexture == "rock") {
-                this.img.src = 'image/rock_texture.jpg'
-            }
-            if (this._pencilTexture == "blackleather") {
-                this.img.src = 'image/blackleather_texture.jpg'
-            }
-
-            patternCtx.drawImage(this.img, 0, 0);
-            return this._canvasContext.createPattern(patternCanvas, 'repeat');
-        }
-
-        startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
-            this._canvasContext = canvas.getContext('2d');
-            this._canvasContext.beginPath();
-            this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
-
-            this._canvasContext.lineWidth = this.radius;
-            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
-            this._canvasContext.strokeStyle = this.getPattern();// TODO
-            this._canvasContext.moveTo(position.x, position.y);
-        }
-
-        continueStoke(position: THREE.Vector2) {
-            if (this._canvasContext) {
-                this._canvasContext.lineTo(position.x, position.y);
-                this._canvasContext.moveTo(position.x, position.y);
-                this._canvasContext.stroke();
-            }
-        }
-
-        finishStroke() {
-            if (this._canvasContext) {
-                this._canvasContext.moveTo(0, 0);
-                this._canvasContext.restore();
-                this._canvasContext = null;
-            }
-        }
-
-        constructor(public radius: number = _brushSize) {
-            this._pencilTexture = _brushTexture;
-        }
-    }
-
-    export class Spray implements Brush {
+    export class SprayBrush implements Brush {
         private _canvasContext: CanvasRenderingContext2D = null;
         private _density = 70;
 
@@ -542,8 +431,43 @@ module Chameleon {
             }
         }
 
-        constructor(public radius: number = _brushSize,
-                    public color: string = _brushColor) {
+        constructor(public radius: number,
+                    public color: string) {
+        }
+    }
+
+    export class TextureBrush implements Brush {
+        private _canvasContext: CanvasRenderingContext2D = null;
+
+        startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
+            this._canvasContext = canvas.getContext('2d');
+            this._canvasContext.beginPath();
+            this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
+
+            this._canvasContext.lineWidth = this.radius;
+            this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
+            this._canvasContext.strokeStyle = this._canvasContext.createPattern(this.texture, 'repeat');
+            this._canvasContext.moveTo(position.x, position.y);
+        }
+
+        continueStoke(position: THREE.Vector2) {
+            if (this._canvasContext) {
+                this._canvasContext.lineTo(position.x, position.y);
+                this._canvasContext.moveTo(position.x, position.y);
+                this._canvasContext.stroke();
+            }
+        }
+
+        finishStroke() {
+            if (this._canvasContext) {
+                this._canvasContext.moveTo(0, 0);
+                this._canvasContext.restore();
+                this._canvasContext = null;
+            }
+        }
+
+        constructor(public radius: number,
+                    public texture: HTMLCanvasElement) {
         }
     }
 
