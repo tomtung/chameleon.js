@@ -145,10 +145,10 @@ module Chameleon {
                     this.brush = new RandomStar();
                 }
                 if (_brushType == "brush9") {
-                    this.brush = new Pencil9();
+                    this.brush = new TextureBrush();
                 }
                 if (_brushType == "brush10") {
-                    this.brush = new Pencil10();
+                    this.brush = new Spray();
                 }
 
 

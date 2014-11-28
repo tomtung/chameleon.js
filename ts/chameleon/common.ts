@@ -28,4 +28,9 @@ module Chameleon {
     export function getRandomFloat(min, max) {
         return Math.random() * (max - min) + min;
     }
+
+    export function angleBetween(point1: THREE.Vector2, point2: THREE.Vector2) {
+        return Math.atan2(point2.x - point1.x, point2.y - point1.y);
+    }
+
 }
