@@ -47,7 +47,6 @@ module Chameleon {
             if (value) {
                 this._useViewingTexture();
             }
-            this.resetCamera();
         }
 
         get backgroundColor(): string {
@@ -103,12 +102,12 @@ module Chameleon {
 
 
         update() {
+            this._perspectiveCameraControls.updateCamera();
+            this._orthographicCameraControls.updateCamera();
             if (this.perspectiveView) {
-                this._perspectiveCameraControls.updateCamera();
                 this._headLight.position.copy(this._perspectiveCamera.position);
                 this._renderer.render(this._scene, this._perspectiveCamera);
             } else {
-                this._orthographicCameraControls.updateCamera();
                 this._headLight.position.copy(this._orthographicCamera.position);
                 this._renderer.render(this._scene, this._orthographicCamera);
             }
@@ -145,13 +144,10 @@ module Chameleon {
             }
 
             // Hold shift key to rotate and pan
-            if (this.perspectiveView) {
+            if (this.perspectiveView || event.shiftKey) {
                 this._state = ControlsState.View;
                 this._useViewingTexture();
                 this._perspectiveCameraControls.onMouseDown(event);
-            } else if (event.shiftKey) {
-                this._state = ControlsState.View;
-                this._useViewingTexture();
                 this._orthographicCameraControls.onMouseDown(event);
             } else {
                 this._state = ControlsState.Draw;
@@ -176,11 +172,8 @@ module Chameleon {
 
             switch (this._state) {
                 case ControlsState.View:
-                    if (this.perspectiveView) {
-                        this._perspectiveCameraControls.onMouseMove(event);
-                    } else {
-                        this._orthographicCameraControls.onMouseMove(event);
-                    }
+                    this._perspectiveCameraControls.onMouseMove(event);
+                    this._orthographicCameraControls.onMouseMove(event);
                     break;
                 case ControlsState.Draw:
                     var pos = mousePositionInCanvas(event, this.canvasBox);
@@ -198,11 +191,8 @@ module Chameleon {
 
             this.brush.finishStroke();
             this.update();
-            if (this.perspectiveView) {
-                this._perspectiveCameraControls.onMouseUp(event);
-            } else {
-                this._orthographicCameraControls.onMouseUp(event);
-            }
+            this._perspectiveCameraControls.onMouseUp(event);
+            this._orthographicCameraControls.onMouseUp(event);
             this._state = ControlsState.Idle;
 
             document.removeEventListener('mousemove', this._mousemove);
@@ -218,11 +208,8 @@ module Chameleon {
             }
 
             this._useViewingTexture();
-            if (this.perspectiveView) {
-                this._perspectiveCameraControls.onMouseWheel(event);
-            } else {
-                this._orthographicCameraControls.onMouseWheel(event);
-            }
+            this._perspectiveCameraControls.onMouseWheel(event);
+            this._orthographicCameraControls.onMouseWheel(event);
         };
 
         private _boundingBallRadius: number;
@@ -243,30 +230,29 @@ module Chameleon {
         private _initializeCamera() {
             this._boundingBallRadius = Controls._computeBoundingBallRadius(this._geometry);
 
+            var fov = 60;
+            var z = 2 * this._boundingBallRadius / Math.tan(fov / 2 / 180 * Math.PI);
+
             this._orthographicCamera = new THREE.OrthographicCamera(
-                -this._boundingBallRadius * 1.5,
-                this._boundingBallRadius * 1.5,
-                this._boundingBallRadius * 1.5,
-                -this._boundingBallRadius * 1.5
+                -this._boundingBallRadius * 2,
+                this._boundingBallRadius * 2,
+                this._boundingBallRadius * 2,
+                -this._boundingBallRadius * 2
             );
-            this._orthographicCamera.position.z = this._boundingBallRadius * 10;
+            this._orthographicCamera.position.z = z;
             this._orthographicCameraControls = new OrthographicCameraControls(this._orthographicCamera, this.canvasBox);
 
-            this._perspectiveCamera = new THREE.PerspectiveCamera(60, 1);
-            this._perspectiveCamera.position.setZ(
-                2 * this._boundingBallRadius / Math.tan(this._perspectiveCamera.fov / 2 / 180 * Math.PI)
-            );
+            this._perspectiveCamera = new THREE.PerspectiveCamera(fov, 1);
+            this._perspectiveCamera.position.setZ(z);
             this._perspectiveCameraControls = new PerspectiveCameraControls(this._perspectiveCamera, this.canvasBox);
         }
 
-        resetCamera() {
-            this._orthographicCamera.position.set(
-                0, 0, this._boundingBallRadius * 10
-            );
-            this._perspectiveCamera.position.set(
-                0, 0,
-                2 * this._boundingBallRadius / Math.tan(this._perspectiveCamera.fov / 2 / 180 * Math.PI)
-            );
+        resetCameras() {
+            var fov = 60;
+            var z = 2 * this._boundingBallRadius / Math.tan(fov / 2 / 180 * Math.PI);
+
+            this._orthographicCamera.position.set(0, 0, z);
+            this._perspectiveCamera.position.set(0, 0, z);
 
             var origin = new THREE.Vector3(0, 0, 0);
 

@@ -198,21 +198,12 @@ module Chameleon {
         private _viewSize: number;
 
         handleResize() {
-            if (this.canvasBox.width < this.canvasBox.height) {
-                this.camera.left = this._center0.x - this._viewSize / 2;
-                this.camera.right = this._center0.x + this._viewSize / 2;
+            this.camera.top = this._center0.y + this._viewSize / 2;
+            this.camera.bottom = this._center0.y - this._viewSize / 2;
 
-                var ratio = this.canvasBox.height / this.canvasBox.width;
-                this.camera.top = this._center0.y + this._viewSize / 2 * ratio;
-                this.camera.bottom = this._center0.y - this._viewSize / 2 * ratio;
-            } else {
-                this.camera.top = this._center0.y + this._viewSize / 2;
-                this.camera.bottom = this._center0.y - this._viewSize / 2;
-
-                var ratio = this.canvasBox.width / this.canvasBox.height;
-                this.camera.left = this._center0.x - this._viewSize / 2 * ratio;
-                this.camera.right = this._center0.x + this._viewSize / 2 * ratio;
-            }
+            var ratio = this.canvasBox.width / this.canvasBox.height;
+            this.camera.left = this._center0.x - this._viewSize / 2 * ratio;
+            this.camera.right = this._center0.x + this._viewSize / 2 * ratio;
 
             this.camera.updateProjectionMatrix();
         }
@@ -224,12 +215,7 @@ module Chameleon {
                 (camera.left + camera.right) / 2,
                 (camera.top + camera.bottom) / 2
             );
-            this._viewSize = 2 * Math.max(
-                this._center0.x - camera.left,
-                camera.right - this._center0.x,
-                this._center0.y - camera.bottom,
-                camera.top - this._center0.y
-            );
+            this._viewSize = camera.top - camera.bottom;
             this.handleResize();
         }
     }

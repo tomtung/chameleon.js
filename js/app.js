@@ -198,24 +198,15 @@ var Chameleon;
             this.camera = camera;
             this.canvasBox = canvasBox;
             this._center0 = new THREE.Vector2((camera.left + camera.right) / 2, (camera.top + camera.bottom) / 2);
-            this._viewSize = 2 * Math.max(this._center0.x - camera.left, camera.right - this._center0.x, this._center0.y - camera.bottom, camera.top - this._center0.y);
+            this._viewSize = camera.top - camera.bottom;
             this.handleResize();
         }
         OrthographicCameraControls.prototype.handleResize = function () {
-            if (this.canvasBox.width < this.canvasBox.height) {
-                this.camera.left = this._center0.x - this._viewSize / 2;
-                this.camera.right = this._center0.x + this._viewSize / 2;
-                var ratio = this.canvasBox.height / this.canvasBox.width;
-                this.camera.top = this._center0.y + this._viewSize / 2 * ratio;
-                this.camera.bottom = this._center0.y - this._viewSize / 2 * ratio;
-            }
-            else {
-                this.camera.top = this._center0.y + this._viewSize / 2;
-                this.camera.bottom = this._center0.y - this._viewSize / 2;
-                var ratio = this.canvasBox.width / this.canvasBox.height;
-                this.camera.left = this._center0.x - this._viewSize / 2 * ratio;
-                this.camera.right = this._center0.x + this._viewSize / 2 * ratio;
-            }
+            this.camera.top = this._center0.y + this._viewSize / 2;
+            this.camera.bottom = this._center0.y - this._viewSize / 2;
+            var ratio = this.canvasBox.width / this.canvasBox.height;
+            this.camera.left = this._center0.x - this._viewSize / 2 * ratio;
+            this.camera.right = this._center0.x + this._viewSize / 2 * ratio;
             this.camera.updateProjectionMatrix();
         };
         return OrthographicCameraControls;
@@ -1015,14 +1006,10 @@ var Chameleon;
                     return;
                 }
                 // Hold shift key to rotate and pan
-                if (_this.perspectiveView) {
+                if (_this.perspectiveView || event.shiftKey) {
                     _this._state = 2 /* View */;
                     _this._useViewingTexture();
                     _this._perspectiveCameraControls.onMouseDown(event);
-                }
-                else if (event.shiftKey) {
-                    _this._state = 2 /* View */;
-                    _this._useViewingTexture();
                     _this._orthographicCameraControls.onMouseDown(event);
                 }
                 else {
@@ -1043,12 +1030,8 @@ var Chameleon;
                 event.stopPropagation();
                 switch (_this._state) {
                     case 2 /* View */:
-                        if (_this.perspectiveView) {
-                            _this._perspectiveCameraControls.onMouseMove(event);
-                        }
-                        else {
-                            _this._orthographicCameraControls.onMouseMove(event);
-                        }
+                        _this._perspectiveCameraControls.onMouseMove(event);
+                        _this._orthographicCameraControls.onMouseMove(event);
                         break;
                     case 1 /* Draw */:
                         var pos = Chameleon.mousePositionInCanvas(event, _this.canvasBox);
@@ -1064,12 +1047,8 @@ var Chameleon;
                 event.stopPropagation();
                 _this.brush.finishStroke();
                 _this.update();
-                if (_this.perspectiveView) {
-                    _this._perspectiveCameraControls.onMouseUp(event);
-                }
-                else {
-                    _this._orthographicCameraControls.onMouseUp(event);
-                }
+                _this._perspectiveCameraControls.onMouseUp(event);
+                _this._orthographicCameraControls.onMouseUp(event);
                 _this._state = 0 /* Idle */;
                 document.removeEventListener('mousemove', _this._mousemove);
                 document.removeEventListener('mouseup', _this._mouseup);
@@ -1081,12 +1060,8 @@ var Chameleon;
                     return;
                 }
                 _this._useViewingTexture();
-                if (_this.perspectiveView) {
-                    _this._perspectiveCameraControls.onMouseWheel(event);
-                }
-                else {
-                    _this._orthographicCameraControls.onMouseWheel(event);
-                }
+                _this._perspectiveCameraControls.onMouseWheel(event);
+                _this._orthographicCameraControls.onMouseWheel(event);
             };
             this._geometry = geometry.clone();
             // Note that a crucial assumption is that this Mesh object will never be transformed (rotated, scaled, or translated)
@@ -1127,7 +1102,6 @@ var Chameleon;
                 if (value) {
                     this._useViewingTexture();
                 }
-                this.resetCamera();
             },
             enumerable: true,
             configurable: true
@@ -1152,13 +1126,13 @@ var Chameleon;
             this._useViewingTexture();
         };
         Controls.prototype.update = function () {
+            this._perspectiveCameraControls.updateCamera();
+            this._orthographicCameraControls.updateCamera();
             if (this.perspectiveView) {
-                this._perspectiveCameraControls.updateCamera();
                 this._headLight.position.copy(this._perspectiveCamera.position);
                 this._renderer.render(this._scene, this._perspectiveCamera);
             }
             else {
-                this._orthographicCameraControls.updateCamera();
                 this._headLight.position.copy(this._orthographicCamera.position);
                 this._renderer.render(this._scene, this._orthographicCamera);
             }
@@ -1190,16 +1164,20 @@ var Chameleon;
         };
         Controls.prototype._initializeCamera = function () {
             this._boundingBallRadius = Controls._computeBoundingBallRadius(this._geometry);
-            this._orthographicCamera = new THREE.OrthographicCamera(-this._boundingBallRadius * 1.5, this._boundingBallRadius * 1.5, this._boundingBallRadius * 1.5, -this._boundingBallRadius * 1.5);
-            this._orthographicCamera.position.z = this._boundingBallRadius * 10;
+            var fov = 60;
+            var z = 2 * this._boundingBallRadius / Math.tan(fov / 2 / 180 * Math.PI);
+            this._orthographicCamera = new THREE.OrthographicCamera(-this._boundingBallRadius * 2, this._boundingBallRadius * 2, this._boundingBallRadius * 2, -this._boundingBallRadius * 2);
+            this._orthographicCamera.position.z = z;
             this._orthographicCameraControls = new Chameleon.OrthographicCameraControls(this._orthographicCamera, this.canvasBox);
-            this._perspectiveCamera = new THREE.PerspectiveCamera(60, 1);
-            this._perspectiveCamera.position.setZ(2 * this._boundingBallRadius / Math.tan(this._perspectiveCamera.fov / 2 / 180 * Math.PI));
+            this._perspectiveCamera = new THREE.PerspectiveCamera(fov, 1);
+            this._perspectiveCamera.position.setZ(z);
             this._perspectiveCameraControls = new Chameleon.PerspectiveCameraControls(this._perspectiveCamera, this.canvasBox);
         };
-        Controls.prototype.resetCamera = function () {
-            this._orthographicCamera.position.set(0, 0, this._boundingBallRadius * 10);
-            this._perspectiveCamera.position.set(0, 0, 2 * this._boundingBallRadius / Math.tan(this._perspectiveCamera.fov / 2 / 180 * Math.PI));
+        Controls.prototype.resetCameras = function () {
+            var fov = 60;
+            var z = 2 * this._boundingBallRadius / Math.tan(fov / 2 / 180 * Math.PI);
+            this._orthographicCamera.position.set(0, 0, z);
+            this._perspectiveCamera.position.set(0, 0, z);
             var origin = new THREE.Vector3(0, 0, 0);
             this._orthographicCameraControls.target.copy(origin);
             this._orthographicCamera.lookAt(origin);
@@ -1384,7 +1362,7 @@ var Chameleon;
             backgroundColor: '#FFFFFF',
             camera: {
                 reset: function () {
-                    chameleon.resetCamera();
+                    chameleon.resetCameras();
                 },
                 perspectiveViewing: false
             }

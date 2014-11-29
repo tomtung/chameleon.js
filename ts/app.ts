@@ -171,7 +171,7 @@ interface TextureItem {
             backgroundColor: '#FFFFFF',
             camera: {
                 reset: () => {
-                    chameleon.resetCamera();
+                    chameleon.resetCameras();
                 },
                 perspectiveViewing: false
             }
