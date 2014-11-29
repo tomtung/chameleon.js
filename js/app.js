@@ -154,7 +154,12 @@ var Chameleon;
             return mouseProjectionOnBall(event, this.canvasBox, this.camera.up, this._eye);
         };
         CameraControlsBase.prototype.zoomCamera = function () {
-            // To be implemented by subclasses
+            var factor = 1.0 + (this._zoomEnd - this._zoomStart) * this.zoomSpeed;
+            if (factor !== 1.0 && factor > 0.0) {
+                this.camera.zoom *= factor;
+                this._zoomStart = this._zoomEnd;
+                this.camera.updateProjectionMatrix();
+            }
         };
         CameraControlsBase.prototype.updateCamera = function () {
             this._eye.subVectors(this.camera.position, this.target);
@@ -176,13 +181,6 @@ var Chameleon;
             this.camera = camera;
             this.canvasBox = canvasBox;
         }
-        PerspectiveCameraControls.prototype.zoomCamera = function () {
-            var factor = 1.0 + (this._zoomEnd - this._zoomStart) * this.zoomSpeed;
-            if (factor !== 1.0 && factor > 0.0) {
-                this._eye.multiplyScalar(factor);
-                this._zoomStart = this._zoomEnd;
-            }
-        };
         PerspectiveCameraControls.prototype.handleResize = function () {
             this.camera.aspect = this.canvasBox.width / this.canvasBox.height;
             this.camera.updateProjectionMatrix();
@@ -203,14 +201,6 @@ var Chameleon;
             this._viewSize = 2 * Math.max(this._center0.x - camera.left, camera.right - this._center0.x, this._center0.y - camera.bottom, camera.top - this._center0.y);
             this.handleResize();
         }
-        OrthographicCameraControls.prototype.zoomCamera = function () {
-            var factor = 1.0 + (this._zoomEnd - this._zoomStart) * this.zoomSpeed;
-            if (factor !== 1.0 && factor > 0.0) {
-                this.camera.zoom *= factor;
-                this._zoomStart = this._zoomEnd;
-                this.camera.updateProjectionMatrix();
-            }
-        };
         OrthographicCameraControls.prototype.handleResize = function () {
             if (this.canvasBox.width < this.canvasBox.height) {
                 this.camera.left = this._center0.x - this._viewSize / 2;
@@ -1218,7 +1208,7 @@ var Chameleon;
             this._orthographicCamera.up.set(0, 1, 0);
             this._perspectiveCamera.up.set(0, 1, 0);
             this._orthographicCamera.zoom = 1;
-            this._perspectiveCamera.zoom = 1; // TODO test whether this works better
+            this._perspectiveCamera.zoom = 1;
             this._orthographicCamera.updateProjectionMatrix();
             this._perspectiveCamera.updateProjectionMatrix();
             this._orthographicCameraControls.handleResize();

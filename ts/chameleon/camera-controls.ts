@@ -90,7 +90,12 @@ module Chameleon {
         })();
 
         zoomCamera() {
-            // To be implemented by subclasses
+            var factor = 1.0 + (this._zoomEnd - this._zoomStart) * this.zoomSpeed;
+            if (factor !== 1.0 && factor > 0.0) {
+                (<any>this.camera).zoom *= factor;
+                this._zoomStart = this._zoomEnd;
+                (<any>this.camera).updateProjectionMatrix();
+            }
         }
 
         panCamera = (() => {
@@ -174,14 +179,6 @@ module Chameleon {
      * A simplification of THREE.TrackballControls from the three.js examples
      */
     export class PerspectiveCameraControls extends CameraControlsBase {
-        zoomCamera() {
-            var factor = 1.0 + (this._zoomEnd - this._zoomStart) * this.zoomSpeed;
-            if (factor !== 1.0 && factor > 0.0) {
-                this._eye.multiplyScalar(factor);
-                this._zoomStart = this._zoomEnd;
-            }
-        }
-
         handleResize() {
             this.camera.aspect = this.canvasBox.width / this.canvasBox.height;
             this.camera.updateProjectionMatrix();
@@ -199,15 +196,6 @@ module Chameleon {
     export class OrthographicCameraControls extends CameraControlsBase {
         private _center0: THREE.Vector2;
         private _viewSize: number;
-
-        zoomCamera() {
-            var factor = 1.0 + (this._zoomEnd - this._zoomStart) * this.zoomSpeed;
-            if (factor !== 1.0 && factor > 0.0) {
-                this.camera.zoom *= factor;
-                this._zoomStart = this._zoomEnd;
-                this.camera.updateProjectionMatrix();
-            }
-        }
 
         handleResize() {
             if (this.canvasBox.width < this.canvasBox.height) {

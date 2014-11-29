@@ -279,7 +279,7 @@ module Chameleon {
             this._perspectiveCamera.up.set(0, 1, 0);
 
             this._orthographicCamera.zoom = 1;
-            this._perspectiveCamera.zoom = 1; // TODO test whether this works better
+            this._perspectiveCamera.zoom = 1;
 
             this._orthographicCamera.updateProjectionMatrix();
             this._perspectiveCamera.updateProjectionMatrix();
