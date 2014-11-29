@@ -981,6 +981,7 @@ var Chameleon;
             this._mesh = new THREE.Mesh();
             this.canvasBox = { left: 0, top: 0, width: 0, height: 0 };
             this._headLight = new THREE.PointLight(0xFFFFFF, 0.4);
+            this._perspectiveView = false;
             this._scene = (function () {
                 var scene = new THREE.Scene();
                 var ambientLight = new THREE.AmbientLight(0x777777);
@@ -1008,10 +1009,15 @@ var Chameleon;
                     return;
                 }
                 // Hold shift key to rotate and pan
-                if (event.shiftKey) {
+                if (_this.perspectiveView) {
                     _this._state = 2 /* View */;
                     _this._useViewingTexture();
-                    _this._cameraControls.onMouseDown(event);
+                    _this._perspectiveCameraControls.onMouseDown(event);
+                }
+                else if (event.shiftKey) {
+                    _this._state = 2 /* View */;
+                    _this._useViewingTexture();
+                    _this._orthographicCameraControls.onMouseDown(event);
                 }
                 else {
                     _this._state = 1 /* Draw */;
@@ -1031,7 +1037,12 @@ var Chameleon;
                 event.stopPropagation();
                 switch (_this._state) {
                     case 2 /* View */:
-                        _this._cameraControls.onMouseMove(event);
+                        if (_this.perspectiveView) {
+                            _this._perspectiveCameraControls.onMouseMove(event);
+                        }
+                        else {
+                            _this._orthographicCameraControls.onMouseMove(event);
+                        }
                         break;
                     case 1 /* Draw */:
                         var pos = Chameleon.mousePositionInCanvas(event, _this.canvasBox);
@@ -1047,7 +1058,12 @@ var Chameleon;
                 event.stopPropagation();
                 _this.brush.finishStroke();
                 _this.update();
-                _this._cameraControls.onMouseUp(event);
+                if (_this.perspectiveView) {
+                    _this._perspectiveCameraControls.onMouseUp(event);
+                }
+                else {
+                    _this._orthographicCameraControls.onMouseUp(event);
+                }
                 _this._state = 0 /* Idle */;
                 document.removeEventListener('mousemove', _this._mousemove);
                 document.removeEventListener('mouseup', _this._mouseup);
@@ -1055,11 +1071,16 @@ var Chameleon;
             this._mousewheel = function (event) {
                 event.preventDefault();
                 event.stopPropagation();
-                if (_this._state === 1 /* Draw */ || !event.shiftKey) {
+                if (_this._state === 1 /* Draw */ || !_this.perspectiveView && !event.shiftKey) {
                     return;
                 }
                 _this._useViewingTexture();
-                _this._cameraControls.onMouseWheel(event);
+                if (_this.perspectiveView) {
+                    _this._perspectiveCameraControls.onMouseWheel(event);
+                }
+                else {
+                    _this._orthographicCameraControls.onMouseWheel(event);
+                }
             };
             this._geometry = geometry.clone();
             // Note that a crucial assumption is that this Mesh object will never be transformed (rotated, scaled, or translated)
@@ -1073,11 +1094,8 @@ var Chameleon;
             this.canvas.addEventListener('mousedown', this._mousedown, false);
             this.canvas.addEventListener('mousewheel', this._mousewheel, false);
             this.canvas.addEventListener('DOMMouseScroll', this._mousewheel, false); // firefox
-            this._boundingBallRadius = Controls._computeBoundingBallRadius(this._geometry);
-            this._camera = new THREE.OrthographicCamera(-this._boundingBallRadius * 1.5, this._boundingBallRadius * 1.5, this._boundingBallRadius * 1.5, -this._boundingBallRadius * 1.5);
-            this._camera.position.z = this._boundingBallRadius * 10;
-            this._cameraControls = new Chameleon.OrthographicCameraControls(this._camera, this.canvasBox);
-            this._textureManager = new Chameleon.TextureManager(this._geometry, this._renderer, this._camera);
+            this._initializeCamera();
+            this._textureManager = new Chameleon.TextureManager(this._geometry, this._renderer, this._orthographicCamera);
             this._textureManager.applyViewingTexture(this._mesh);
             this._usingViewingTexture = true;
             this.handleResize();
@@ -1091,16 +1109,41 @@ var Chameleon;
             this.canvasBox.width = canvasRect.width;
             this.canvasBox.height = canvasRect.height;
         };
+        Object.defineProperty(Controls.prototype, "perspectiveView", {
+            get: function () {
+                return this._perspectiveView;
+            },
+            set: function (value) {
+                if (this._perspectiveView === value) {
+                    return;
+                }
+                this._perspectiveView = value;
+                if (value) {
+                    this._useViewingTexture();
+                }
+                this.resetCamera();
+            },
+            enumerable: true,
+            configurable: true
+        });
         Controls.prototype.handleResize = function () {
             this._renderer.setSize(this.canvas.width, this.canvas.height);
             this.updateCanvasBox();
-            this._cameraControls.handleResize();
+            this._orthographicCameraControls.handleResize();
+            this._perspectiveCameraControls.handleResize();
             this._useViewingTexture();
         };
         Controls.prototype.update = function () {
-            this._cameraControls.updateCamera();
-            this._headLight.position.copy(this._camera.position);
-            this._renderer.render(this._scene, this._camera);
+            if (this.perspectiveView) {
+                this._perspectiveCameraControls.updateCamera();
+                this._headLight.position.copy(this._perspectiveCamera.position);
+                this._renderer.render(this._scene, this._perspectiveCamera);
+            }
+            else {
+                this._orthographicCameraControls.updateCamera();
+                this._headLight.position.copy(this._orthographicCamera.position);
+                this._renderer.render(this._scene, this._orthographicCamera);
+            }
             this.canvas.getContext('2d').drawImage(this._renderer.domElement, 0, 0);
         };
         Controls.prototype._useViewingTexture = function () {
@@ -1127,15 +1170,32 @@ var Chameleon;
             }
             return radius;
         };
+        Controls.prototype._initializeCamera = function () {
+            this._boundingBallRadius = Controls._computeBoundingBallRadius(this._geometry);
+            this._orthographicCamera = new THREE.OrthographicCamera(-this._boundingBallRadius * 1.5, this._boundingBallRadius * 1.5, this._boundingBallRadius * 1.5, -this._boundingBallRadius * 1.5);
+            this._orthographicCamera.position.z = this._boundingBallRadius * 10;
+            this._orthographicCameraControls = new Chameleon.OrthographicCameraControls(this._orthographicCamera, this.canvasBox);
+            this._perspectiveCamera = new THREE.PerspectiveCamera(60, 1);
+            this._perspectiveCamera.position.setZ(2 * this._boundingBallRadius / Math.tan(this._perspectiveCamera.fov / 2 / 180 * Math.PI));
+            this._perspectiveCameraControls = new Chameleon.PerspectiveCameraControls(this._perspectiveCamera, this.canvasBox);
+        };
         Controls.prototype.resetCamera = function () {
-            this._camera.position.set(0, 0, this._boundingBallRadius * 10);
-            this._cameraControls.target.copy(new THREE.Vector3(0, 0, 0));
-            this._camera.lookAt(new THREE.Vector3(0, 0, 0));
-            this._camera.up.set(0, 1, 0);
-            this._camera.zoom = 1;
-            this._camera.updateProjectionMatrix();
+            this._orthographicCamera.position.set(0, 0, this._boundingBallRadius * 10);
+            this._perspectiveCamera.position.set(0, 0, 2 * this._boundingBallRadius / Math.tan(this._perspectiveCamera.fov / 2 / 180 * Math.PI));
+            var origin = new THREE.Vector3(0, 0, 0);
+            this._orthographicCameraControls.target.copy(origin);
+            this._orthographicCamera.lookAt(origin);
+            this._perspectiveCameraControls.target.copy(origin);
+            this._perspectiveCamera.lookAt(origin);
+            this._orthographicCamera.up.set(0, 1, 0);
+            this._perspectiveCamera.up.set(0, 1, 0);
+            this._orthographicCamera.zoom = 1;
+            this._perspectiveCamera.zoom = 1; // TODO test whether this works better
+            this._orthographicCamera.updateProjectionMatrix();
+            this._perspectiveCamera.updateProjectionMatrix();
+            this._orthographicCameraControls.handleResize();
+            this._perspectiveCameraControls.handleResize();
             this._useViewingTexture();
-            this._cameraControls.handleResize();
         };
         return Controls;
     })();
@@ -1303,13 +1363,27 @@ var Chameleon;
     }
     function setUpGui() {
         var settings = {
-            resetCamera: function () {
-                chameleon.resetCamera();
+            camera: {
+                reset: function () {
+                    chameleon.resetCamera();
+                },
+                perspectiveViewing: false
             }
         };
-        var gui = new dat.GUI();
-        gui.add(settings, 'resetCamera').name('Reset Camera');
+        var gui = new dat.GUI({ width: 310 });
+        var cameraFolder = gui.addFolder('Camera');
         var brushFolder = gui.addFolder('Brush');
+        cameraFolder.open();
+        cameraFolder.add(settings.camera, 'perspectiveViewing').name('Perspective Viewing').onChange(function (value) {
+            chameleon.perspectiveView = value;
+            if (value) {
+                brushFolder.close();
+            }
+            else {
+                brushFolder.open();
+            }
+        });
+        cameraFolder.add(settings.camera, 'reset').name('Reset');
         brushFolder.open();
         setUpBrushSettingsGui(settings, brushFolder);
     }

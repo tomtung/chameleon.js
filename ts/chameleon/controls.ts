@@ -28,8 +28,27 @@ module Chameleon {
         }
 
         private _headLight: THREE.PointLight = new THREE.PointLight(0xFFFFFF, 0.4);
-        private _camera: THREE.OrthographicCamera;
-        private _cameraControls: OrthographicCameraControls;
+        private _orthographicCamera: THREE.OrthographicCamera;
+        private _orthographicCameraControls: OrthographicCameraControls;
+        private _perspectiveCamera: THREE.PerspectiveCamera;
+        private _perspectiveCameraControls: PerspectiveCameraControls;
+
+        private _perspectiveView = false;
+        get perspectiveView(): boolean {
+            return this._perspectiveView;
+        }
+
+        set perspectiveView(value: boolean) {
+            if (this._perspectiveView === value) {
+                return;
+            }
+
+            this._perspectiveView = value;
+            if (value) {
+                this._useViewingTexture();
+            }
+            this.resetCamera();
+        }
 
         private _scene: THREE.Scene = (() => {
             var scene = new THREE.Scene();
@@ -67,16 +86,23 @@ module Chameleon {
         handleResize() {
             this._renderer.setSize(this.canvas.width, this.canvas.height);
             this.updateCanvasBox();
-            this._cameraControls.handleResize();
+            this._orthographicCameraControls.handleResize();
+            this._perspectiveCameraControls.handleResize();
             this._useViewingTexture();
         }
 
 
         update() {
-            this._cameraControls.updateCamera();
-            this._headLight.position.copy(this._camera.position);
+            if (this.perspectiveView) {
+                this._perspectiveCameraControls.updateCamera();
+                this._headLight.position.copy(this._perspectiveCamera.position);
+                this._renderer.render(this._scene, this._perspectiveCamera);
+            } else {
+                this._orthographicCameraControls.updateCamera();
+                this._headLight.position.copy(this._orthographicCamera.position);
+                this._renderer.render(this._scene, this._orthographicCamera);
+            }
 
-            this._renderer.render(this._scene, this._camera);
             this.canvas.getContext('2d').drawImage(this._renderer.domElement, 0, 0);
         }
 
@@ -109,10 +135,14 @@ module Chameleon {
             }
 
             // Hold shift key to rotate and pan
-            if (event.shiftKey) {
+            if (this.perspectiveView) {
                 this._state = ControlsState.View;
                 this._useViewingTexture();
-                this._cameraControls.onMouseDown(event);
+                this._perspectiveCameraControls.onMouseDown(event);
+            } else if (event.shiftKey) {
+                this._state = ControlsState.View;
+                this._useViewingTexture();
+                this._orthographicCameraControls.onMouseDown(event);
             } else {
                 this._state = ControlsState.Draw;
                 this._useDrawingTexture();
@@ -136,7 +166,11 @@ module Chameleon {
 
             switch (this._state) {
                 case ControlsState.View:
-                    this._cameraControls.onMouseMove(event);
+                    if (this.perspectiveView) {
+                        this._perspectiveCameraControls.onMouseMove(event);
+                    } else {
+                        this._orthographicCameraControls.onMouseMove(event);
+                    }
                     break;
                 case ControlsState.Draw:
                     var pos = mousePositionInCanvas(event, this.canvasBox);
@@ -154,7 +188,11 @@ module Chameleon {
 
             this.brush.finishStroke();
             this.update();
-            this._cameraControls.onMouseUp(event);
+            if (this.perspectiveView) {
+                this._perspectiveCameraControls.onMouseUp(event);
+            } else {
+                this._orthographicCameraControls.onMouseUp(event);
+            }
             this._state = ControlsState.Idle;
 
             document.removeEventListener('mousemove', this._mousemove);
@@ -165,15 +203,20 @@ module Chameleon {
             event.preventDefault();
             event.stopPropagation();
 
-            if (this._state === ControlsState.Draw || !event.shiftKey) {
+            if (this._state === ControlsState.Draw || !this.perspectiveView && !event.shiftKey) {
                 return;
             }
 
             this._useViewingTexture();
-            this._cameraControls.onMouseWheel(event);
+            if (this.perspectiveView) {
+                this._perspectiveCameraControls.onMouseWheel(event);
+            } else {
+                this._orthographicCameraControls.onMouseWheel(event);
+            }
         };
 
         private _boundingBallRadius: number;
+
         private static _computeBoundingBallRadius(geometry: THREE.Geometry): number {
             var radius = 0;
             var origin = new THREE.Vector3(0, 0, 0);
@@ -187,17 +230,54 @@ module Chameleon {
             return radius;
         }
 
+        private _initializeCamera() {
+            this._boundingBallRadius = Controls._computeBoundingBallRadius(this._geometry);
+
+            this._orthographicCamera = new THREE.OrthographicCamera(
+                -this._boundingBallRadius * 1.5,
+                this._boundingBallRadius * 1.5,
+                this._boundingBallRadius * 1.5,
+                -this._boundingBallRadius * 1.5
+            );
+            this._orthographicCamera.position.z = this._boundingBallRadius * 10;
+            this._orthographicCameraControls = new OrthographicCameraControls(this._orthographicCamera, this.canvasBox);
+
+            this._perspectiveCamera = new THREE.PerspectiveCamera(60, 1);
+            this._perspectiveCamera.position.setZ(
+                2 * this._boundingBallRadius / Math.tan(this._perspectiveCamera.fov / 2 / 180 * Math.PI)
+            );
+            this._perspectiveCameraControls = new PerspectiveCameraControls(this._perspectiveCamera, this.canvasBox);
+        }
+
         resetCamera() {
-            this._camera.position.set(
+            this._orthographicCamera.position.set(
                 0, 0, this._boundingBallRadius * 10
             );
-            this._cameraControls.target.copy(new THREE.Vector3(0, 0, 0));
-            this._camera.lookAt(new THREE.Vector3(0, 0, 0));
-            this._camera.up.set(0, 1, 0);
-            this._camera.zoom = 1;
-            this._camera.updateProjectionMatrix();
+            this._perspectiveCamera.position.set(
+                0, 0,
+                2 * this._boundingBallRadius / Math.tan(this._perspectiveCamera.fov / 2 / 180 * Math.PI)
+            );
+
+            var origin = new THREE.Vector3(0, 0, 0);
+
+            this._orthographicCameraControls.target.copy(origin);
+            this._orthographicCamera.lookAt(origin);
+            this._perspectiveCameraControls.target.copy(origin);
+            this._perspectiveCamera.lookAt(origin);
+
+            this._orthographicCamera.up.set(0, 1, 0);
+            this._perspectiveCamera.up.set(0, 1, 0);
+
+            this._orthographicCamera.zoom = 1;
+            this._perspectiveCamera.zoom = 1; // TODO test whether this works better
+
+            this._orthographicCamera.updateProjectionMatrix();
+            this._perspectiveCamera.updateProjectionMatrix();
+
+            this._orthographicCameraControls.handleResize();
+            this._perspectiveCameraControls.handleResize();
+
             this._useViewingTexture();
-            this._cameraControls.handleResize();
         }
 
         constructor(geometry: THREE.Geometry, canvas?: HTMLCanvasElement) {
@@ -215,17 +295,9 @@ module Chameleon {
             this.canvas.addEventListener('mousewheel', this._mousewheel, false);
             this.canvas.addEventListener('DOMMouseScroll', this._mousewheel, false); // firefox
 
-            this._boundingBallRadius = Controls._computeBoundingBallRadius(this._geometry);
-            this._camera = new THREE.OrthographicCamera(
-                -this._boundingBallRadius * 1.5,
-                this._boundingBallRadius * 1.5,
-                this._boundingBallRadius * 1.5,
-                -this._boundingBallRadius * 1.5
-            );
-            this._camera.position.z = this._boundingBallRadius * 10;
-            this._cameraControls = new OrthographicCameraControls(this._camera, this.canvasBox);
+            this._initializeCamera();
 
-            this._textureManager = new TextureManager(this._geometry, this._renderer, this._camera);
+            this._textureManager = new TextureManager(this._geometry, this._renderer, this._orthographicCamera);
             this._textureManager.applyViewingTexture(this._mesh);
             this._usingViewingTexture = true;
 

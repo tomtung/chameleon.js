@@ -168,14 +168,32 @@ interface TextureItem {
 
     function setUpGui() {
         var settings = {
-            resetCamera: () => {
-                chameleon.resetCamera();
+            camera: {
+                reset: () => {
+                    chameleon.resetCamera();
+                },
+                perspectiveViewing: false
             }
         };
-        var gui = new dat.GUI();
-        gui.add(settings, 'resetCamera').name('Reset Camera');
+        var gui = new dat.GUI({width: 310});
+        var cameraFolder = gui.addFolder('Camera');
         var brushFolder = gui.addFolder('Brush');
+
+        cameraFolder.open();
+        cameraFolder.add(settings.camera, 'perspectiveViewing').name('Perspective Viewing').onChange(
+            (value) => {
+                chameleon.perspectiveView = value;
+                if (value) {
+                    brushFolder.close();
+                } else {
+                    brushFolder.open();
+                }
+            }
+        );
+        cameraFolder.add(settings.camera, 'reset').name('Reset');
+
         brushFolder.open();
+
         setUpBrushSettingsGui(settings, brushFolder);
     }
 
