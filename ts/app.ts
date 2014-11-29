@@ -168,6 +168,7 @@ interface TextureItem {
 
     function setUpGui() {
         var settings = {
+            backgroundColor: '#FFFFFF',
             camera: {
                 reset: () => {
                     chameleon.resetCamera();
@@ -176,6 +177,11 @@ interface TextureItem {
             }
         };
         var gui = new dat.GUI({width: 310});
+
+        gui.addColor(settings, 'backgroundColor').name('Background Reset').onChange(
+            (value) =>  chameleon.backgroundColor = value
+        );
+
         var cameraFolder = gui.addFolder('Camera');
         var brushFolder = gui.addFolder('Brush');
 

@@ -280,6 +280,8 @@ var Chameleon;
             this.geometry = geometry;
             this.renderer = renderer;
             this.camera = camera;
+            this._backgroundSinglePixelCanvas = document.createElement('canvas');
+            this.backgroundColor = '#FFFFFF';
             this._affectedFaces = new AffectedFacesRecorder(this.geometry.faces.length);
             this.initializeViewingTexture().initializeDrawingTexture();
             this._isFloodFillEmpty = new Uint8Array(this.geometry.faces.length);
@@ -323,11 +325,25 @@ var Chameleon;
             enumerable: true,
             configurable: true
         });
+        TextureManager.prototype.backgroundReset = function () {
+            var context = this._backgroundSinglePixelCanvas.getContext('2d');
+            context.beginPath();
+            context.fillStyle = this.backgroundColor;
+            context.fillRect(0, 0, 1, 1);
+            for (var i = 0; i < this.geometry.faces.length; i += 1) {
+                var faceMaterial = this._viewingMaterial.materials[i];
+                faceMaterial.map.image = this._backgroundSinglePixelCanvas;
+                faceMaterial.map.needsUpdate = true;
+                for (var j = 0; j < this._viewingTextureUvs[i].length; j += 1) {
+                    this._viewingTextureUvs[i][j].set(0.5, 0.5);
+                }
+            }
+        };
         TextureManager.prototype.initializeViewingTexture = function () {
-            var singlePixelCanvas = document.createElement('canvas');
-            singlePixelCanvas.width = singlePixelCanvas.height = 1;
-            var context = singlePixelCanvas.getContext('2d');
-            context.fillStyle = '#FFFFFF';
+            this._backgroundSinglePixelCanvas.width = this._backgroundSinglePixelCanvas.height = 1;
+            var context = this._backgroundSinglePixelCanvas.getContext('2d');
+            context.beginPath();
+            context.fillStyle = this.backgroundColor;
             context.fillRect(0, 0, 1, 1);
             this._viewingTextureUvs = [];
             var faces = this.geometry.faces;
@@ -341,7 +357,7 @@ var Chameleon;
                     new THREE.Vector2(0.5, 0.5),
                     new THREE.Vector2(0.5, 0.5)
                 ]);
-                var lambertMaterial = new THREE.MeshLambertMaterial({ map: new THREE.Texture(singlePixelCanvas) });
+                var lambertMaterial = new THREE.MeshLambertMaterial({ map: new THREE.Texture(this._backgroundSinglePixelCanvas) });
                 lambertMaterial.map.needsUpdate = true;
                 this._viewingMaterial.materials.push(lambertMaterial);
             }
@@ -1126,6 +1142,18 @@ var Chameleon;
             enumerable: true,
             configurable: true
         });
+        Object.defineProperty(Controls.prototype, "backgroundColor", {
+            get: function () {
+                return this._textureManager.backgroundColor;
+            },
+            set: function (value) {
+                this._useViewingTexture();
+                this._textureManager.backgroundColor = value;
+                this._textureManager.backgroundReset();
+            },
+            enumerable: true,
+            configurable: true
+        });
         Controls.prototype.handleResize = function () {
             this._renderer.setSize(this.canvas.width, this.canvas.height);
             this.updateCanvasBox();
@@ -1363,6 +1391,7 @@ var Chameleon;
     }
     function setUpGui() {
         var settings = {
+            backgroundColor: '#FFFFFF',
             camera: {
                 reset: function () {
                     chameleon.resetCamera();
@@ -1371,6 +1400,7 @@ var Chameleon;
             }
         };
         var gui = new dat.GUI({ width: 310 });
+        gui.addColor(settings, 'backgroundColor').name('Background Reset').onChange(function (value) { return chameleon.backgroundColor = value; });
         var cameraFolder = gui.addFolder('Camera');
         var brushFolder = gui.addFolder('Brush');
         cameraFolder.open();

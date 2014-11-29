@@ -50,6 +50,16 @@ module Chameleon {
             this.resetCamera();
         }
 
+        get backgroundColor(): string {
+            return this._textureManager.backgroundColor;
+        }
+
+        set backgroundColor(value: string) {
+            this._useViewingTexture();
+            this._textureManager.backgroundColor = value;
+            this._textureManager.backgroundReset();
+        }
+
         private _scene: THREE.Scene = (() => {
             var scene = new THREE.Scene();
 
