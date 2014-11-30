@@ -651,7 +651,7 @@ var Chameleon;
         }
         Object.defineProperty(CalligraphyBrush.prototype, "radius", {
             get: function () {
-                return 25;
+                return 32 / 2;
             },
             enumerable: true,
             configurable: true
@@ -669,8 +669,8 @@ var Chameleon;
                 var dist = this._lastPosition.distanceTo(position);
                 var angle = Chameleon.angleBetween(this._lastPosition, position);
                 for (var i = 0; i < dist; i++) {
-                    var x = this._lastPosition.x + (Math.sin(angle) * i) - 25;
-                    var y = this._lastPosition.y + (Math.cos(angle) * i) - 25;
+                    var x = this._lastPosition.x + (Math.sin(angle) * i) - this.radius;
+                    var y = this._lastPosition.y + (Math.cos(angle) * i) - this.radius;
                     this._canvasContext.drawImage(this.img, x, y);
                 }
                 this._lastPosition.copy(position);
@@ -693,7 +693,7 @@ var Chameleon;
         }
         Object.defineProperty(Fur.prototype, "radius", {
             get: function () {
-                return 25;
+                return 32 * 1.415 / 2;
             },
             enumerable: true,
             configurable: true
@@ -754,6 +754,7 @@ var Chameleon;
                 this._canvasContext.beginPath();
                 this._canvasContext.globalAlpha = 0.85;
                 for (var i = -this.radius * 0.9; i <= this.radius * 0.9; i += this.radius / 20) {
+                    this._canvasContext.beginPath();
                     this._canvasContext.moveTo(this._lastPosition.x + i, this._lastPosition.y + i);
                     this._canvasContext.lineTo(position.x + i, position.y + i);
                     this._canvasContext.stroke();

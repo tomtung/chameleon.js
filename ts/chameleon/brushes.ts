@@ -110,7 +110,7 @@ module Chameleon {
 
     export class CalligraphyBrush implements Brush {
         get radius(): number {
-            return 25;
+            return 32 / 2;
         }
 
         private img = new Image();
@@ -133,8 +133,8 @@ module Chameleon {
                 var angle = angleBetween(this._lastPosition, position);
 
                 for (var i = 0; i < dist; i++) {
-                    var x = this._lastPosition.x + (Math.sin(angle) * i) - 25;
-                    var y = this._lastPosition.y + (Math.cos(angle) * i) - 25;
+                    var x = this._lastPosition.x + (Math.sin(angle) * i) - this.radius;
+                    var y = this._lastPosition.y + (Math.cos(angle) * i) - this.radius;
                     this._canvasContext.drawImage(this.img, x, y);
                 }
 
@@ -152,7 +152,7 @@ module Chameleon {
 
     export class Fur implements Brush {
         get radius(): number {
-            return 25;
+            return 32 * 1.415 / 2;
         }
 
         private img = new Image();
@@ -219,6 +219,7 @@ module Chameleon {
                 this._canvasContext.globalAlpha = 0.85;
 
                 for (var i = -this.radius * 0.9; i <= this.radius * 0.9; i += this.radius / 20) {
+                    this._canvasContext.beginPath();
                     this._canvasContext.moveTo(this._lastPosition.x + i, this._lastPosition.y + i);
                     this._canvasContext.lineTo(position.x + i, position.y + i);
                     this._canvasContext.stroke();
