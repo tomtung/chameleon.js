@@ -80,8 +80,8 @@ module Chameleon {
             return scene;
         })();
 
-        private _renderer: THREE.Renderer = (() => {
-            var renderer = new THREE.WebGLRenderer({antialias: true});
+        private _renderer: THREE.WebGLRenderer = (() => {
+            var renderer = new THREE.WebGLRenderer({alpha: true, antialias: true});
             renderer.setClearColor(0xAAAAAA, 1.0);
             return renderer;
         })();

@@ -338,7 +338,10 @@ var Chameleon;
                     new THREE.Vector2(0.5, 0.5),
                     new THREE.Vector2(0.5, 0.5)
                 ]);
-                var lambertMaterial = new THREE.MeshLambertMaterial({ map: new THREE.Texture(this._backgroundSinglePixelCanvas) });
+                var lambertMaterial = new THREE.MeshLambertMaterial({
+                    map: new THREE.Texture(this._backgroundSinglePixelCanvas),
+                    transparent: true
+                });
                 lambertMaterial.map.needsUpdate = true;
                 this._viewingMaterial.materials.push(lambertMaterial);
             }
@@ -361,7 +364,8 @@ var Chameleon;
             }
             this._drawingCanvas = document.createElement('canvas');
             this._drawingMaterial = new THREE.MeshLambertMaterial({
-                map: new THREE.Texture(this._drawingCanvas)
+                map: new THREE.Texture(this._drawingCanvas),
+                transparent: true
             });
             this._drawingTextureMesh = new THREE.Mesh(this.geometry, this._viewingMaterial);
             this._drawingTextureScene = new THREE.Scene();
@@ -409,9 +413,17 @@ var Chameleon;
             return this;
         };
         TextureManager.prototype.prepareDrawingTexture = function () {
+            // Assumption: when renderer is created, 'alpha' must be set to true
+            var originalClearAlpha = this.renderer.getClearAlpha();
+            var originalClearColor = this.renderer.getClearColor().clone();
+            this.renderer.setClearColor(0, 0);
             this.renderer.render(this._drawingTextureScene, this.camera);
             this._drawingCanvas.width = this.renderer.domElement.width;
             this._drawingCanvas.height = this.renderer.domElement.height;
+            this.drawingContext.drawImage(this.renderer.domElement, -2, 0);
+            this.drawingContext.drawImage(this.renderer.domElement, 2, 0);
+            this.drawingContext.drawImage(this.renderer.domElement, 0, -2);
+            this.drawingContext.drawImage(this.renderer.domElement, 0, 2);
             this.drawingContext.drawImage(this.renderer.domElement, 0, 0);
             this._drawingMaterial.map.needsUpdate = true;
             var projectedPosition = new THREE.Vector3();
@@ -424,6 +436,7 @@ var Chameleon;
                 this._drawingTextureUvs[i][1].copy(this._drawingVertexUvs[this.geometry.faces[i].b]);
                 this._drawingTextureUvs[i][2].copy(this._drawingVertexUvs[this.geometry.faces[i].c]);
             }
+            this.renderer.setClearColor(originalClearColor, originalClearAlpha);
             return this;
         };
         TextureManager.prototype.applyDrawingTexture = function (mesh) {
@@ -994,7 +1007,7 @@ var Chameleon;
                 return scene;
             })();
             this._renderer = (function () {
-                var renderer = new THREE.WebGLRenderer({ antialias: true });
+                var renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
                 renderer.setClearColor(0xAAAAAA, 1.0);
                 return renderer;
             })();

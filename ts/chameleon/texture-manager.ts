@@ -106,7 +106,10 @@ module Chameleon {
                     new THREE.Vector2(0.5, 0.5)
                 ]);
 
-                var lambertMaterial = new THREE.MeshLambertMaterial({map: new THREE.Texture(this._backgroundSinglePixelCanvas)});
+                var lambertMaterial = new THREE.MeshLambertMaterial({
+                    map: new THREE.Texture(this._backgroundSinglePixelCanvas),
+                    transparent: true
+                });
                 lambertMaterial.map.needsUpdate = true;
                 this._viewingMaterial.materials.push(lambertMaterial);
             }
@@ -133,7 +136,8 @@ module Chameleon {
 
             this._drawingCanvas = document.createElement('canvas');
             this._drawingMaterial = new THREE.MeshLambertMaterial({
-                map: new THREE.Texture(this._drawingCanvas)
+                map: new THREE.Texture(this._drawingCanvas),
+                transparent: true
             });
             this._drawingTextureMesh = new THREE.Mesh(this.geometry, this._viewingMaterial);
 
@@ -207,10 +211,21 @@ module Chameleon {
         }
 
         prepareDrawingTexture(): TextureManager {
+            // Assumption: when renderer is created, 'alpha' must be set to true
+            var originalClearAlpha = this.renderer.getClearAlpha();
+            var originalClearColor = this.renderer.getClearColor().clone();
+            this.renderer.setClearColor(0, 0);
+
             this.renderer.render(this._drawingTextureScene, this.camera);
             this._drawingCanvas.width = this.renderer.domElement.width;
             this._drawingCanvas.height = this.renderer.domElement.height;
+
+            this.drawingContext.drawImage(this.renderer.domElement, -2, 0);
+            this.drawingContext.drawImage(this.renderer.domElement, 2, 0);
+            this.drawingContext.drawImage(this.renderer.domElement, 0, -2);
+            this.drawingContext.drawImage(this.renderer.domElement, 0, 2);
             this.drawingContext.drawImage(this.renderer.domElement, 0, 0);
+
             this._drawingMaterial.map.needsUpdate = true;
 
             var projectedPosition = new THREE.Vector3();
@@ -228,6 +243,7 @@ module Chameleon {
                 this._drawingTextureUvs[i][2].copy(this._drawingVertexUvs[this.geometry.faces[i].c]);
             }
 
+            this.renderer.setClearColor(originalClearColor, originalClearAlpha);
             return this;
         }
 
@@ -378,7 +394,7 @@ module Chameleon {
         // Assumption on geometry: material indices are same to face indices.
         // This special treatment is implemented in the constructor of Controls
         constructor(public geometry: THREE.Geometry,
-                    public renderer: THREE.Renderer,
+                    public renderer: THREE.WebGLRenderer,
                     public camera: THREE.OrthographicCamera) {
 
             this._affectedFaces = new AffectedFacesRecorder(this.geometry.faces.length);
