@@ -71,12 +71,12 @@ interface TextureItem {
         var brushItems: BrushItem[] = [
             {
                 name: 'Marker',
-                instance: new Chameleon.MarkerBrush(settings.brush.size, settings.brush.color),
+                instance: new Chameleon.MarkerBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
             }, {
                 name: 'Blurry Marker',
-                instance: new Chameleon.BlurryMarkerBrush(settings.brush.size, settings.brush.color),
+                instance: new Chameleon.BlurryMarkerBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
             }, {
@@ -87,31 +87,31 @@ interface TextureItem {
                 instance: new Chameleon.Fur()
             }, {
                 name: 'Thick Brush',
-                instance: new Chameleon.ThickBrush(settings.brush.size, settings.brush.color),
+                instance: new Chameleon.ThickBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
             }, {
                 name: 'Ink Drop',
-                instance: new Chameleon.InkDropBrush(settings.brush.size, settings.brush.color),
+                instance: new Chameleon.InkDropBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
             }, {
                 name: 'Star',
-                instance: new Chameleon.StarBrush(settings.brush.size, settings.brush.color),
+                instance: new Chameleon.StarBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
             }, {
                 name: 'Random Star',
-                instance: new Chameleon.RandomStarBrush(settings.brush.size),
+                instance: new Chameleon.RandomStarBrush(1),
                 sizeConfig: true
             }, {
                 name: 'Spray',
-                instance: new Chameleon.SprayBrush(settings.brush.size, settings.brush.color),
+                instance: new Chameleon.SprayBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
             }, {
                 name: 'Texture',
-                instance: new Chameleon.TextureBrush(settings.brush.size, textureItems[0].canvas),
+                instance: new Chameleon.TextureBrush(1, textureItems[0].canvas),
                 sizeConfig: true,
                 textureConfig: true
             }
@@ -122,7 +122,7 @@ interface TextureItem {
         var colorController = folder.addColor(settings.brush, 'color').name('Color');
         var textureController = folder.add(settings.brush, 'texture', textureItems.map((_)=>_.name)).name('Texture');
 
-        var handleSizeChange = (newSize) => chameleon.brush.radius = newSize;
+        var handleSizeChange = (newSize) => chameleon.brush.radius = newSize / 2;
         var handleColorChange = (newColor) => {
             if ('color' in chameleon.brush) {
                 (<any>chameleon.brush).color = newColor;

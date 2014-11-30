@@ -563,6 +563,7 @@ var Chameleon;
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
+            this._canvasContext.lineWidth = this.radius * 2;
             this._canvasContext.moveTo(position.x, position.y);
         };
         Pencil.prototype.continueStoke = function (position) {
@@ -590,7 +591,7 @@ var Chameleon;
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
-            this._canvasContext.lineWidth = this.radius;
+            this._canvasContext.lineWidth = this.radius * 2;
             this._canvasContext.strokeStyle = this.color;
             this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
             this._canvasContext.moveTo(position.x, position.y);
@@ -650,7 +651,7 @@ var Chameleon;
         }
         Object.defineProperty(CalligraphyBrush.prototype, "radius", {
             get: function () {
-                return 40;
+                return 25;
             },
             enumerable: true,
             configurable: true
@@ -692,7 +693,7 @@ var Chameleon;
         }
         Object.defineProperty(Fur.prototype, "radius", {
             get: function () {
-                return 40;
+                return 25;
             },
             enumerable: true,
             configurable: true
@@ -737,7 +738,6 @@ var Chameleon;
             this.radius = radius;
             this.color = color;
             this._canvasContext = null;
-            this._LINE_WIDTH = 3;
             this._lastPosition = new THREE.Vector2();
         }
         ThickBrush.prototype.startStroke = function (canvas, position) {
@@ -753,7 +753,7 @@ var Chameleon;
             if (this._canvasContext) {
                 this._canvasContext.beginPath();
                 this._canvasContext.globalAlpha = 0.85;
-                for (var i = -this.radius * 0.45; i <= this.radius * 0.45; i += this.radius / 20) {
+                for (var i = -this.radius * 0.9; i <= this.radius * 0.9; i += this.radius / 20) {
                     this._canvasContext.moveTo(this._lastPosition.x + i, this._lastPosition.y + i);
                     this._canvasContext.lineTo(position.x + i, position.y + i);
                     this._canvasContext.stroke();
@@ -814,7 +814,7 @@ var Chameleon;
             this._lastPosition = new THREE.Vector2();
         }
         StarBrush.prototype.drawStar = function (position, angle) {
-            var length = this.radius / 3.5;
+            var length = this.radius / 2;
             var x = position.x, y = position.y;
             this._canvasContext.save();
             this._canvasContext.translate(x, y);
@@ -863,7 +863,7 @@ var Chameleon;
             this._lastPosition = new THREE.Vector2();
         }
         RandomStarBrush.prototype.drawStar = function (position) {
-            var angle = Chameleon.getRandomInt(0, 180), width = Chameleon.getRandomInt(1, 10), opacity = Math.random(), scale = Chameleon.getRandomInt(5, 20) / 20, color = ('rgb(' + Chameleon.getRandomInt(0, 255) + ',' + Chameleon.getRandomInt(0, 255) + ',' + Chameleon.getRandomInt(0, 255) + ')'), length = this.radius / 3.5;
+            var angle = Chameleon.getRandomInt(0, 180), width = Chameleon.getRandomInt(1, this.radius / 2.8), opacity = Math.random(), scale = Chameleon.getRandomInt(10, 20) / 20, color = ('rgb(' + Chameleon.getRandomInt(0, 255) + ',' + Chameleon.getRandomInt(0, 255) + ',' + Chameleon.getRandomInt(0, 255) + ')'), length = this.radius / 3.5;
             this._canvasContext.save();
             this._canvasContext.translate(position.x, position.y);
             this._canvasContext.beginPath();
@@ -949,7 +949,7 @@ var Chameleon;
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
-            this._canvasContext.lineWidth = this.radius;
+            this._canvasContext.lineWidth = this.radius * 2;
             this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
             this._canvasContext.strokeStyle = this._canvasContext.createPattern(this.texture, 'repeat');
             this._canvasContext.moveTo(position.x, position.y);
@@ -1274,13 +1274,13 @@ var Chameleon;
         var brushItems = [
             {
                 name: 'Marker',
-                instance: new Chameleon.MarkerBrush(settings.brush.size, settings.brush.color),
+                instance: new Chameleon.MarkerBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
             },
             {
                 name: 'Blurry Marker',
-                instance: new Chameleon.BlurryMarkerBrush(settings.brush.size, settings.brush.color),
+                instance: new Chameleon.BlurryMarkerBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
             },
@@ -1294,36 +1294,36 @@ var Chameleon;
             },
             {
                 name: 'Thick Brush',
-                instance: new Chameleon.ThickBrush(settings.brush.size, settings.brush.color),
+                instance: new Chameleon.ThickBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
             },
             {
                 name: 'Ink Drop',
-                instance: new Chameleon.InkDropBrush(settings.brush.size, settings.brush.color),
+                instance: new Chameleon.InkDropBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
             },
             {
                 name: 'Star',
-                instance: new Chameleon.StarBrush(settings.brush.size, settings.brush.color),
+                instance: new Chameleon.StarBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
             },
             {
                 name: 'Random Star',
-                instance: new Chameleon.RandomStarBrush(settings.brush.size),
+                instance: new Chameleon.RandomStarBrush(1),
                 sizeConfig: true
             },
             {
                 name: 'Spray',
-                instance: new Chameleon.SprayBrush(settings.brush.size, settings.brush.color),
+                instance: new Chameleon.SprayBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
             },
             {
                 name: 'Texture',
-                instance: new Chameleon.TextureBrush(settings.brush.size, textureItems[0].canvas),
+                instance: new Chameleon.TextureBrush(1, textureItems[0].canvas),
                 sizeConfig: true,
                 textureConfig: true
             }
@@ -1332,7 +1332,7 @@ var Chameleon;
         var sizeController = folder.add(settings.brush, 'size', 1, 40).step(0.5).name('Size');
         var colorController = folder.addColor(settings.brush, 'color').name('Color');
         var textureController = folder.add(settings.brush, 'texture', textureItems.map(function (_) { return _.name; })).name('Texture');
-        var handleSizeChange = function (newSize) { return chameleon.brush.radius = newSize; };
+        var handleSizeChange = function (newSize) { return chameleon.brush.radius = newSize / 2; };
         var handleColorChange = function (newColor) {
             if ('color' in chameleon.brush) {
                 chameleon.brush.color = newColor;

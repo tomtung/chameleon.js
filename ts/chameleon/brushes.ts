@@ -20,6 +20,7 @@ module Chameleon {
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
+            this._canvasContext.lineWidth = this.radius * 2;
 
             this._canvasContext.moveTo(position.x, position.y);
         }
@@ -47,7 +48,7 @@ module Chameleon {
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
 
-            this._canvasContext.lineWidth = this.radius;
+            this._canvasContext.lineWidth = this.radius * 2;
             this._canvasContext.strokeStyle = this.color;
             this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
             this._canvasContext.moveTo(position.x, position.y);
@@ -109,7 +110,7 @@ module Chameleon {
 
     export class CalligraphyBrush implements Brush {
         get radius(): number {
-            return 40;
+            return 25;
         }
 
         private img = new Image();
@@ -151,7 +152,7 @@ module Chameleon {
 
     export class Fur implements Brush {
         get radius(): number {
-            return 40;
+            return 25;
         }
 
         private img = new Image();
@@ -199,7 +200,6 @@ module Chameleon {
 
     export class ThickBrush implements Brush {
         private _canvasContext: CanvasRenderingContext2D = null;
-        private _LINE_WIDTH = 3;
         private _lastPosition = new THREE.Vector2();
 
         startStroke(canvas: HTMLCanvasElement, position: THREE.Vector2) {
@@ -218,7 +218,7 @@ module Chameleon {
                 this._canvasContext.beginPath();
                 this._canvasContext.globalAlpha = 0.85;
 
-                for (var i = -this.radius * 0.45; i <= this.radius * 0.45; i += this.radius / 20) {
+                for (var i = -this.radius * 0.9; i <= this.radius * 0.9; i += this.radius / 20) {
                     this._canvasContext.moveTo(this._lastPosition.x + i, this._lastPosition.y + i);
                     this._canvasContext.lineTo(position.x + i, position.y + i);
                     this._canvasContext.stroke();
@@ -289,7 +289,7 @@ module Chameleon {
         private _lastPosition: THREE.Vector2 = new THREE.Vector2();
 
         drawStar(position: THREE.Vector2, angle: number) {
-            var length = this.radius / 3.5;
+            var length = this.radius / 2;
             var x = position.x, y = position.y;
             this._canvasContext.save();
             this._canvasContext.translate(x, y);
@@ -343,9 +343,9 @@ module Chameleon {
 
         drawStar(position: THREE.Vector2) {
             var angle = getRandomInt(0, 180),
-                width = getRandomInt(1, 10),
+                width = getRandomInt(1, this.radius / 2.8),
                 opacity = Math.random(),
-                scale = getRandomInt(5, 20) / 20,
+                scale = getRandomInt(10, 20) / 20,
                 color = ('rgb(' + getRandomInt(0, 255) + ',' + getRandomInt(0, 255) + ',' + getRandomInt(0, 255) + ')'),
                 length = this.radius / 3.5;
 
@@ -444,7 +444,7 @@ module Chameleon {
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
 
-            this._canvasContext.lineWidth = this.radius;
+            this._canvasContext.lineWidth = this.radius * 2;
             this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
             this._canvasContext.strokeStyle = this._canvasContext.createPattern(this.texture, 'repeat');
             this._canvasContext.moveTo(position.x, position.y);
