@@ -276,6 +276,14 @@ module Chameleon {
             this._useViewingTexture();
         }
 
+        packTexture(): HTMLCanvasElement {
+            this._useViewingTexture();
+            this._textureManager.preparePackingTexture().applyPackingTexture(this._mesh);
+            var objData = new THREE.OBJExporter().parse(this.geometry);
+            console.log(objData);
+            return this._textureManager._packingCanvas;
+        }
+
         constructor(geometry: THREE.Geometry, canvas?: HTMLCanvasElement) {
             this.geometry = geometry.clone();
             // Note that a crucial assumption is that this Mesh object will never be transformed (rotated, scaled, or translated)

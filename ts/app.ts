@@ -193,20 +193,29 @@ interface TextureItem {
             },
             exportObjTexture: () => {
                 if (chameleon) {
-                    chameleon.resetCameras(); // Force using viewing texture
-                    var objData = new THREE.OBJExporter().parse(chameleon.geometry);
-                    var objUrl = URL.createObjectURL(new Blob([objData], {type: 'text/plain'}));
-
                     var newWindow = window.open();
-                    var a = newWindow.document.createElement('a');
-                    a.href = objUrl;
-                    a.setAttribute('download', 'model.obj');
-                    newWindow.document.body.appendChild(a);
-                    a.click();
 
+                    var packingTexture = chameleon.packTexture();
+                    var aPng = newWindow.document.createElement('a');
+                    aPng.href = packingTexture.toDataURL();
+                    aPng.setAttribute('download', 'texture.png');
+                    newWindow.document.body.appendChild(aPng);
                     setTimeout(() => {
-                        newWindow.close();
-                    }, 200);
+                        aPng.click();
+
+                        var objData = new THREE.OBJExporter().parse(chameleon.geometry);
+                        var objUrl = URL.createObjectURL(new Blob([objData], {type: 'text/plain'}));
+
+                        var aObj = newWindow.document.createElement('a');
+                        aObj.href = objUrl;
+                        aObj.setAttribute('download', 'model.obj');
+                        newWindow.document.body.appendChild(aObj);
+                        setTimeout(() => {
+                            aObj.click();
+                        }, 100);
+
+                    }, 100);
+
                 }
             }
         };

@@ -265,7 +265,7 @@ var Chameleon;
             this._backgroundSinglePixelCanvas = document.createElement('canvas');
             this.backgroundColor = '#FFFFFF';
             this._affectedFaces = new AffectedFacesRecorder(this.geometry.faces.length);
-            this.initializeViewingTexture().initializeDrawingTexture();
+            this.initializeViewingTexture().initializePackingTexture().initializeDrawingTexture();
             this._isFloodFillEmpty = new Uint8Array(this.geometry.faces.length);
             this._isFloodFill = new Uint8Array(this.geometry.faces.length);
             this._nAdjacentFaces = new Uint8Array(this.geometry.faces.length);
@@ -412,11 +412,175 @@ var Chameleon;
             mesh.geometry.uvsNeedUpdate = true;
             return this;
         };
+        ///////////
+        TextureManager.prototype.initializePackingTexture = function () {
+            this._packingTextureUvs = [];
+            var faces = this.geometry.faces;
+            for (var i = 0; i < faces.length; i += 1) {
+                this._packingTextureUvs.push([
+                    new THREE.Vector2(0.5, 0.5),
+                    new THREE.Vector2(0.5, 0.5),
+                    new THREE.Vector2(0.5, 0.5)
+                ]);
+            }
+            this._packingCanvas = document.createElement('canvas');
+            this._packingMaterial = new THREE.MeshLambertMaterial({
+                map: new THREE.Texture(this._packingCanvas)
+            });
+            return this;
+        };
+        TextureManager.prototype.applyPackingTexture = function (mesh) {
+            mesh.material = this._packingMaterial;
+            mesh.geometry.faceVertexUvs[0] = this._packingTextureUvs;
+            mesh.geometry.uvsNeedUpdate = true;
+            return this;
+        };
+        TextureManager.prototype.preparePackingTexture = function () {
+            var area = 0;
+            var size;
+            var restWidth = 0;
+            var restHeight;
+            var canvaslist = [];
+            var oriCanvaslist = [];
+            //rotation status list, 0: canvas not rotated; 1:canvas rotated
+            var rotStatus = [];
+            for (var i = 0; i < this.geometry.faces.length; i += 1) {
+                var faceCanvas = this._viewingMaterial.materials[i].map.image;
+                //if this canvas has already been collected
+                var k;
+                for (k = 0; k < canvaslist.length; k += 1) {
+                    if (faceCanvas === canvaslist[k]) {
+                        break;
+                    }
+                }
+                if (k === canvaslist.length) {
+                    canvaslist.push(faceCanvas);
+                    oriCanvaslist.push(faceCanvas);
+                }
+            }
+            for (var i = 0; i < canvaslist.length; i += 1) {
+                //initialize rotation status list
+                rotStatus.push(0);
+                if (canvaslist[i].width > canvaslist[i].height) {
+                    var tmpCanvas = document.createElement('canvas');
+                    tmpCanvas.width = canvaslist[i].height;
+                    tmpCanvas.height = canvaslist[i].width;
+                    tmpCanvas.getContext("2d").rotate(90 * Math.PI / 180);
+                    tmpCanvas.getContext("2d").translate(0, -tmpCanvas.width);
+                    tmpCanvas.getContext("2d").drawImage(canvaslist[i], 0, 0);
+                    canvaslist[i] = tmpCanvas;
+                    //set rotation status
+                    rotStatus[i] = 1;
+                }
+                //get the total area of all patches
+                area += canvaslist[i].width * canvaslist[i].height;
+            }
+            size = Math.sqrt(area) * 1.5;
+            size = Math.floor(size);
+            //Sort the height, bubble sorting
+            var tmpCtx;
+            var tmpStatus;
+            for (var i = 0; i < canvaslist.length - 1; i += 1) {
+                for (var j = 1; j < canvaslist.length - i; j += 1) {
+                    if (canvaslist[j - 1].height < canvaslist[j].height) {
+                        tmpCtx = canvaslist[j - 1];
+                        canvaslist[j - 1] = canvaslist[j];
+                        canvaslist[j] = tmpCtx;
+                        //also swap original canvas and rotStatus
+                        tmpCtx = oriCanvaslist[j - 1];
+                        oriCanvaslist[j - 1] = oriCanvaslist[j];
+                        oriCanvaslist[j] = tmpCtx;
+                        tmpStatus = rotStatus[j - 1];
+                        rotStatus[j - 1] = rotStatus[j];
+                        rotStatus[j] = tmpStatus;
+                    }
+                }
+            }
+            if (size < canvaslist[0].height) {
+                size = canvaslist[0].height;
+            }
+            //Create one big canvas to hold all patches
+            this._packingCanvas.width = size;
+            this._packingCanvas.height = size;
+            var ctx = this._packingCanvas.getContext("2d");
+            //fold
+            var index = 0;
+            var sign = 1;
+            var x;
+            var y;
+            var colum = 0;
+            //height buffer
+            var heightBuffer = new Array();
+            for (var i = 0; i < size; i += 1) {
+                heightBuffer.push(0);
+            }
+            restHeight = size;
+            while (restHeight > 0 && index < canvaslist.length) {
+                y = size - restHeight;
+                restHeight -= canvaslist[index].height;
+                restWidth = size;
+                if (colum % 2 == 0) {
+                    sign = 1;
+                }
+                else {
+                    sign = 0;
+                }
+                while (restWidth > 0 && index < canvaslist.length && canvaslist[index].width <= restWidth) {
+                    //x
+                    if (sign) {
+                        x = size - restWidth;
+                    }
+                    else {
+                        x = restWidth - canvaslist[index].width;
+                    }
+                    //y
+                    y = heightBuffer[x];
+                    for (var i = x; i < (x + canvaslist[index].width); i += 1) {
+                        y = Math.max(heightBuffer[i], y);
+                    }
+                    ctx.drawImage(canvaslist[index], x, y);
+                    for (var i = x; i < (x + canvaslist[index].width); i += 1) {
+                        heightBuffer[i] = y + canvaslist[index].height;
+                    }
+                    for (var faceIndex = 0; faceIndex < this.geometry.faces.length; faceIndex += 1) {
+                        //this._affectedFaces.forEach((faceIndex) => {
+                        var faceCanvas = this._viewingMaterial.materials[faceIndex].map.image;
+                        var packingUvs = this._packingTextureUvs[faceIndex];
+                        var viewingUvs = this._viewingTextureUvs[faceIndex];
+                        if (faceCanvas == oriCanvaslist[index]) {
+                            debugger;
+                            if (rotStatus[index] == 1) {
+                                for (var j = 0; j < 3; j += 1) {
+                                    var viewingUV = viewingUvs[j];
+                                    packingUvs[j].setX((viewingUV.y * oriCanvaslist[index].height + x) / size);
+                                    packingUvs[j].setY((size - y - viewingUV.x * oriCanvaslist[index].width) / size);
+                                }
+                            }
+                            else {
+                                for (var j = 0; j < 3; j += 1) {
+                                    var viewingUV = viewingUvs[j];
+                                    packingUvs[j].setX((viewingUV.x * oriCanvaslist[index].width + x) / size);
+                                    packingUvs[j].setY((size - y - (1 - viewingUV.y) * oriCanvaslist[index].height) / size);
+                                }
+                            }
+                        }
+                    }
+                    //
+                    restWidth -= canvaslist[index].width;
+                    index += 1;
+                }
+                colum += 1;
+            }
+            this._packingMaterial.map.needsUpdate = true;
+            return this;
+        };
+        ///////////
         TextureManager.prototype.prepareDrawingTexture = function () {
             // Assumption: when renderer is created, 'alpha' must be set to true
             var originalClearAlpha = this.renderer.getClearAlpha();
             var originalClearColor = this.renderer.getClearColor().clone();
             this.renderer.setClearColor(0, 0);
+            this.applyViewingTexture(this._drawingTextureMesh);
             this.renderer.render(this._drawingTextureScene, this.camera);
             this._drawingCanvas.width = this.renderer.domElement.width;
             this._drawingCanvas.height = this.renderer.domElement.height;
@@ -460,7 +624,7 @@ var Chameleon;
             return dx * dx + dy * dy <= r * r;
         };
         TextureManager.prototype._lineCircleCollide = function (a, b, circle, radius) {
-            //check to see if start or end points lie within circle 
+            //check to see if start or end points lie within circle
             if (this._pointCircleCollide(a, circle, radius)) {
                 return true;
             }
@@ -1199,6 +1363,13 @@ var Chameleon;
             this._perspectiveCameraControls.handleResize();
             this._useViewingTexture();
         };
+        Controls.prototype.packTexture = function () {
+            this._useViewingTexture();
+            this._textureManager.preparePackingTexture().applyPackingTexture(this._mesh);
+            var objData = new THREE.OBJExporter().parse(this.geometry);
+            console.log(objData);
+            return this._textureManager._packingCanvas;
+        };
         return Controls;
     })();
     Chameleon.Controls = Controls;
@@ -1386,18 +1557,24 @@ var Chameleon;
             },
             exportObjTexture: function () {
                 if (chameleon) {
-                    chameleon.resetCameras(); // Force using viewing texture
-                    var objData = new THREE.OBJExporter().parse(chameleon.geometry);
-                    var objUrl = URL.createObjectURL(new Blob([objData], { type: 'text/plain' }));
                     var newWindow = window.open();
-                    var a = newWindow.document.createElement('a');
-                    a.href = objUrl;
-                    a.setAttribute('download', 'model.obj');
-                    newWindow.document.body.appendChild(a);
-                    a.click();
+                    var packingTexture = chameleon.packTexture();
+                    var aPng = newWindow.document.createElement('a');
+                    aPng.href = packingTexture.toDataURL();
+                    aPng.setAttribute('download', 'texture.png');
+                    newWindow.document.body.appendChild(aPng);
                     setTimeout(function () {
-                        newWindow.close();
-                    }, 200);
+                        aPng.click();
+                        var objData = new THREE.OBJExporter().parse(chameleon.geometry);
+                        var objUrl = URL.createObjectURL(new Blob([objData], { type: 'text/plain' }));
+                        var aObj = newWindow.document.createElement('a');
+                        aObj.href = objUrl;
+                        aObj.setAttribute('download', 'model.obj');
+                        newWindow.document.body.appendChild(aObj);
+                        setTimeout(function () {
+                            aObj.click();
+                        }, 100);
+                    }, 100);
                 }
             }
         };
