@@ -33,11 +33,11 @@ module Chameleon {
         };
     })();
 
-    enum CameraControlsState {
+    export enum CameraControlsState {
         Idle, Pan, Rotate
     }
 
-    class CameraControlsBase {
+    export class CameraControlsBase {
         rotateSpeed: number = 1.5;
         panSpeed: number = 0.8;
         zoomSpeed: number = 1.2;

@@ -280,7 +280,7 @@ module Chameleon {
         }
 
         private _lineCircleCollide(a, b, circle, radius) {
-            //check to see if start or end points lie within circle
+            //check to see if start or end points lie within circle 
             if (this._pointCircleCollide(a, circle, radius)) {
                 return true;
             }
@@ -293,32 +293,22 @@ module Chameleon {
                 x2 = b.x, y2 = b.y,
                 cx = circle.x, cy = circle.y;
 
-            //vector d
-            var dx = x2 - x1;
-            var dy = y2 - y1;
+            var c1x = cx - x1;
+            var c1y = cy - y1;
+            var e1x = x2 - x1;
+            var e1y = y2 - y1;
+            var k = c1x * e1x + c1y * e1y;
 
-            //vector lc
-            var lcx = cx - x1;
-            var lcy = cy - y1;
-
-            //project lc onto d, resulting in vector p
-            var dLen2 = dx * dx + dy * dy; //len2 of d
-            var px = dx;
-            var py = dy;
-            if (dLen2 > 0) {
-                var dp = (lcx * dx + lcy * dy) / dLen2;
-                px *= dp;
-                py *= dp;
+            if (k > 0) {
+                var len = Math.sqrt(e1x * e1x + e1y * e1y);
+                k = k / len;
+                if (k < len) {
+                    if (c1x * c1x + c1y * c1y - k * k <= radius * radius)
+                        return true;
+                }
             }
 
-            var nearest = [x1 + px, y1 + py];
-
-            //len2 of p
-            var pLen2 = px * px + py * py;
-
-            //check collision
-            return this._pointCircleCollide(nearest, circle, radius)
-                && pLen2 <= dLen2 && (px * dx + py * dy) >= 0;
+            return false;
         }
 
         private _pointInTriangle(point, t0, t1, t2) {
@@ -380,13 +370,8 @@ module Chameleon {
             if (intersections.length > 0) {
                 this._drawingMaterial.map.needsUpdate = true;
                 var faceIndex = intersections[0].face.materialIndex;
-                //this._affectedFaces.add(faceIndex);
-
-                // TODO use radius to find all affected triangles
                 this._isFloodFill.set(this._isFloodFillEmpty);
                 this._add_recursive(faceIndex, canvasPos, radius);
-                console.log(this._isFloodFill);
-                console.log(this._affectedFaces);
             }
 
             return this;
@@ -406,7 +391,7 @@ module Chameleon {
             this._nAdjacentFaces = new Uint8Array(this.geometry.faces.length);
             this._AdjacentFacesList = new Array(this.geometry.faces.length);
             for (var i = 0; i < this.geometry.faces.length; i += 1) {
-                this._AdjacentFacesList[i] = new Uint32Array(this.geometry.faces.length);
+                this._AdjacentFacesList[i] = new Uint32Array(10);
             }
             for (var i = 0; i < this.geometry.faces.length - 1; i += 1) {
                 for (var j = i + 1; j < this.geometry.faces.length; j += 1) {
@@ -432,8 +417,6 @@ module Chameleon {
                     }
                 }
             }
-            console.log(this._nAdjacentFaces);
-            console.log(this._AdjacentFacesList);
         }
     }
 
