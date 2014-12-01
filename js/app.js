@@ -277,9 +277,10 @@ var Chameleon;
                     var vi = [this.geometry.faces[i].a, this.geometry.faces[i].b, this.geometry.faces[i].c];
                     var vj = [this.geometry.faces[j].a, this.geometry.faces[j].b, this.geometry.faces[j].c];
                     var count = 0;
+                    var EPSILON = 1e-3;
                     for (var k = 0; k < 3; k++)
                         for (var l = 0; l < 3; l++)
-                            if (this.geometry.vertices[vi[k]].x == this.geometry.vertices[vj[l]].x && this.geometry.vertices[vi[k]].y == this.geometry.vertices[vj[l]].y && this.geometry.vertices[vi[k]].z == this.geometry.vertices[vj[l]].z && this.geometry.faces[i].normal.dot(this.geometry.faces[j].normal) > 0)
+                            if (this.geometry.vertices[vi[k]].x - this.geometry.vertices[vj[l]].x < EPSILON && this.geometry.vertices[vi[k]].x - this.geometry.vertices[vj[l]].x > -EPSILON && this.geometry.vertices[vi[k]].y - this.geometry.vertices[vj[l]].y < EPSILON && this.geometry.vertices[vi[k]].y - this.geometry.vertices[vj[l]].y > -EPSILON && this.geometry.vertices[vi[k]].z - this.geometry.vertices[vj[l]].z < EPSILON && this.geometry.vertices[vi[k]].z - this.geometry.vertices[vj[l]].z > -EPSILON && this.geometry.faces[i].normal.dot(this.geometry.faces[j].normal) > EPSILON)
                                 count++;
                     if (count == 2) {
                         this._AdjacentFacesList[i][this._nAdjacentFaces[i]] = j;
@@ -446,8 +447,10 @@ var Chameleon;
             return this;
         };
         TextureManager.prototype._castRayFromMouse = function (canvasPos) {
-            var mouse3d = new THREE.Vector3(canvasPos.x / this._drawingCanvas.width * 2 - 1, -canvasPos.y / this._drawingCanvas.height * 2 + 1, -10000).unproject(this.camera);
-            var direction = new THREE.Vector3(0, 0, -1).transformDirection(this.camera.matrixWorld);
+            var mouse3d = new THREE.Vector3(canvasPos.x / this._drawingCanvas.width * 2 - 1, -canvasPos.y / this._drawingCanvas.height * 2 + 1, -1.0);
+            var direction = new THREE.Vector3(mouse3d.x, mouse3d.y, 1.0);
+            mouse3d.unproject(this.camera);
+            direction.unproject(this.camera).sub(mouse3d).normalize();
             return new THREE.Raycaster(mouse3d, direction).intersectObject(this._drawingTextureMesh);
         };
         TextureManager.prototype._pointCircleCollide = function (point, circle, r) {
