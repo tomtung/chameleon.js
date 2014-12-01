@@ -278,10 +278,10 @@ module Chameleon {
 
         packTexture(): HTMLCanvasElement {
             this._useViewingTexture();
-            this._textureManager.preparePackingTexture().applyPackingTexture(this._mesh);
+            this._textureManager.preparePackingTexture().applyPackedTexture(this._mesh);
             var objData = new THREE.OBJExporter().parse(this.geometry);
             console.log(objData);
-            return this._textureManager._packingCanvas;
+            return this._textureManager._packedTextureCanvas;
         }
 
         constructor(geometry: THREE.Geometry, canvas?: HTMLCanvasElement) {

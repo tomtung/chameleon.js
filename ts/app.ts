@@ -195,9 +195,9 @@ interface TextureItem {
                 if (chameleon) {
                     var newWindow = window.open();
 
-                    var packingTexture = chameleon.packTexture();
+                    var packedTexture = chameleon.packTexture();
                     var aPng = newWindow.document.createElement('a');
-                    aPng.href = packingTexture.toDataURL();
+                    aPng.href = packedTexture.toDataURL();
                     aPng.setAttribute('download', 'texture.png');
                     newWindow.document.body.appendChild(aPng);
                     setTimeout(() => {
