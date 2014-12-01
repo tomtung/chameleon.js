@@ -5,24 +5,20 @@ var Chameleon;
         return new THREE.Vector2(event.pageX - canvasBox.left, event.pageY - canvasBox.top);
     }
     Chameleon.mousePositionInCanvas = mousePositionInCanvas;
-
     function showCanvasInNewWindow(canvas) {
         var dataURL = canvas.toDataURL("image/png");
         var newWindow = window.open();
         newWindow.document.write('<img style="border:1px solid black" src="' + dataURL + '"/>');
     }
     Chameleon.showCanvasInNewWindow = showCanvasInNewWindow;
-
     function getRandomInt(min, max) {
         return Math.floor(Math.random() * (max - min)) + min;
     }
     Chameleon.getRandomInt = getRandomInt;
-
     function getRandomFloat(min, max) {
         return Math.random() * (max - min) + min;
     }
     Chameleon.getRandomFloat = getRandomFloat;
-
     function angleBetween(point1, point2) {
         return Math.atan2(point2.x - point1.x, point2.y - point1.y);
     }
@@ -40,32 +36,27 @@ var Chameleon;
     var mouseProjectionOnBall = (function () {
         var projGlobal = new THREE.Vector3(), projLocal = new THREE.Vector3();
         var upFactor = new THREE.Vector3(), eyeFactor = new THREE.Vector3(), sideFactor = new THREE.Vector3();
-
         return function (event, canvasBox, up, eye) {
             projLocal.set((event.pageX - canvasBox.width * 0.5 - canvasBox.left) / (canvasBox.width * .5), (canvasBox.height * 0.5 + canvasBox.top - event.pageY) / (canvasBox.height * .5), 0.0);
-
             var lengthSq = projLocal.lengthSq();
             if (lengthSq > 1.0) {
                 projLocal.normalize();
-            } else {
+            }
+            else {
                 projLocal.z = Math.sqrt(1.0 - lengthSq);
             }
-
             sideFactor.copy(up).cross(eye).setLength(projLocal.x);
             upFactor.copy(up).setLength(projLocal.y);
             eyeFactor.copy(eye).setLength(projLocal.z);
-
             return projGlobal.copy(sideFactor).add(upFactor).add(eyeFactor);
         };
     })();
-
     (function (CameraControlsState) {
         CameraControlsState[CameraControlsState["Idle"] = 0] = "Idle";
         CameraControlsState[CameraControlsState["Pan"] = 1] = "Pan";
         CameraControlsState[CameraControlsState["Rotate"] = 2] = "Rotate";
     })(Chameleon.CameraControlsState || (Chameleon.CameraControlsState = {}));
     var CameraControlsState = Chameleon.CameraControlsState;
-
     var CameraControlsBase = (function () {
         function CameraControlsBase(camera, canvasBox) {
             var _this = this;
@@ -85,17 +76,14 @@ var Chameleon;
             this._panEnd = new THREE.Vector2();
             this.rotateCamera = (function () {
                 var axis = new THREE.Vector3(), quaternion = new THREE.Quaternion();
-
                 return function () {
                     var angle = Math.acos(_this._rotateStart.dot(_this._rotateEnd) / _this._rotateStart.length() / _this._rotateEnd.length());
                     if (angle) {
                         axis.crossVectors(_this._rotateStart, _this._rotateEnd).normalize();
                         angle *= _this.rotateSpeed;
                         quaternion.setFromAxisAngle(axis, -angle);
-
                         _this._eye.applyQuaternion(quaternion);
                         _this.camera.up.applyQuaternion(quaternion);
-
                         _this._rotateEnd.applyQuaternion(quaternion);
                         _this._rotateStart.copy(_this._rotateEnd);
                     }
@@ -103,7 +91,6 @@ var Chameleon;
             })();
             this.panCamera = (function () {
                 var mouseChange = new THREE.Vector2(), cameraUp = new THREE.Vector3(), pan = new THREE.Vector3();
-
                 return function () {
                     mouseChange.subVectors(_this._panEnd, _this._panStart);
                     if (mouseChange.lengthSq()) {
@@ -148,10 +135,10 @@ var Chameleon;
             };
             this.onMouseWheel = function (event) {
                 var delta = 0;
-
                 if (event.wheelDelta) {
                     delta = event.wheelDelta / 40;
-                } else if (event.detail) {
+                }
+                else if (event.detail) {
                     delta = -event.detail / 3;
                 }
                 _this._zoomStart += delta * 0.01;
@@ -163,11 +150,9 @@ var Chameleon;
             pos.y /= this.canvasBox.height;
             return pos;
         };
-
         CameraControlsBase.prototype._getMouseProjectionOnBall = function (event) {
             return mouseProjectionOnBall(event, this.canvasBox, this.camera.up, this._eye);
         };
-
         CameraControlsBase.prototype.zoomCamera = function () {
             var factor = 1.0 + (this._zoomEnd - this._zoomStart) * this.zoomSpeed;
             if (factor !== 1.0 && factor > 0.0) {
@@ -176,24 +161,20 @@ var Chameleon;
                 this.camera.updateProjectionMatrix();
             }
         };
-
         CameraControlsBase.prototype.updateCamera = function () {
             this._eye.subVectors(this.camera.position, this.target);
-
             this.rotateCamera();
             this.zoomCamera();
             this.panCamera();
-
             this.camera.position.addVectors(this.target, this._eye);
             this.camera.lookAt(this.target);
         };
         return CameraControlsBase;
     })();
     Chameleon.CameraControlsBase = CameraControlsBase;
-
     /**
-    * A simplification of THREE.TrackballControls from the three.js examples
-    */
+     * A simplification of THREE.TrackballControls from the three.js examples
+     */
     var PerspectiveCameraControls = (function (_super) {
         __extends(PerspectiveCameraControls, _super);
         function PerspectiveCameraControls(camera, canvasBox) {
@@ -208,10 +189,9 @@ var Chameleon;
         return PerspectiveCameraControls;
     })(CameraControlsBase);
     Chameleon.PerspectiveCameraControls = PerspectiveCameraControls;
-
     /**
-    * A simplification of THREE.OrthographicTrackballControls from the three.js examples
-    */
+     * A simplification of THREE.OrthographicTrackballControls from the three.js examples
+     */
     var OrthographicCameraControls = (function (_super) {
         __extends(OrthographicCameraControls, _super);
         function OrthographicCameraControls(camera, canvasBox) {
@@ -225,11 +205,9 @@ var Chameleon;
         OrthographicCameraControls.prototype.handleResize = function () {
             this.camera.top = this._center0.y + this._viewSize / 2;
             this.camera.bottom = this._center0.y - this._viewSize / 2;
-
             var ratio = this.canvasBox.width / this.canvasBox.height;
             this.camera.left = this._center0.x - this._viewSize / 2 * ratio;
             this.camera.right = this._center0.x + this._viewSize / 2 * ratio;
-
             this.camera.updateProjectionMatrix();
         };
         return OrthographicCameraControls;
@@ -253,18 +231,15 @@ var Chameleon;
                 this._nAffectedFaces += 1;
             }
         };
-
         AffectedFacesRecorder.prototype.reset = function () {
             this._nAffectedFaces = 0;
             this._isFaceAffected.set(this._isFaceAffectedEmpty);
         };
-
         AffectedFacesRecorder.prototype.forEach = function (f) {
             for (var i = 0; i < this._nAffectedFaces; i += 1) {
                 f(this._affectedFaces[i]);
             }
         };
-
         Object.defineProperty(AffectedFacesRecorder.prototype, "length", {
             get: function () {
                 return this._nAffectedFaces;
@@ -272,16 +247,14 @@ var Chameleon;
             enumerable: true,
             configurable: true
         });
-
         AffectedFacesRecorder.prototype.contains = function (faceIndex) {
             return !!this._isFaceAffected[faceIndex];
         };
         return AffectedFacesRecorder;
     })();
-
     /**
-    * Manages both the viewing texture and the drawing texture
-    */
+     * Manages both the viewing texture and the drawing texture
+     */
     var TextureManager = (function () {
         // Assumption on geometry: material indices are same to face indices.
         // This special treatment is implemented in the constructor of Controls
@@ -293,7 +266,6 @@ var Chameleon;
             this.backgroundColor = '#FFFFFF';
             this._affectedFaces = new AffectedFacesRecorder(this.geometry.faces.length);
             this.initializeViewingTexture().initializeDrawingTexture();
-
             this._isFloodFillEmpty = new Uint8Array(this.geometry.faces.length);
             this._isFloodFill = new Uint8Array(this.geometry.faces.length);
             this._nAdjacentFaces = new Uint8Array(this.geometry.faces.length);
@@ -327,7 +299,6 @@ var Chameleon;
             enumerable: true,
             configurable: true
         });
-
         Object.defineProperty(TextureManager.prototype, "drawingCanvas", {
             get: function () {
                 return this._drawingCanvas;
@@ -335,13 +306,11 @@ var Chameleon;
             enumerable: true,
             configurable: true
         });
-
         TextureManager.prototype.backgroundReset = function () {
             var context = this._backgroundSinglePixelCanvas.getContext('2d');
             context.beginPath();
             context.fillStyle = this.backgroundColor;
             context.fillRect(0, 0, 1, 1);
-
             for (var i = 0; i < this.geometry.faces.length; i += 1) {
                 var faceMaterial = this._viewingMaterial.materials[i];
                 faceMaterial.map.image = this._backgroundSinglePixelCanvas;
@@ -351,14 +320,12 @@ var Chameleon;
                 }
             }
         };
-
         TextureManager.prototype.initializeViewingTexture = function () {
             this._backgroundSinglePixelCanvas.width = this._backgroundSinglePixelCanvas.height = 1;
             var context = this._backgroundSinglePixelCanvas.getContext('2d');
             context.beginPath();
             context.fillStyle = this.backgroundColor;
             context.fillRect(0, 0, 1, 1);
-
             this._viewingTextureUvs = [];
             var faces = this.geometry.faces;
             this._viewingMaterial = new THREE.MeshFaceMaterial();
@@ -371,7 +338,6 @@ var Chameleon;
                     new THREE.Vector2(0.5, 0.5),
                     new THREE.Vector2(0.5, 0.5)
                 ]);
-
                 var lambertMaterial = new THREE.MeshLambertMaterial({
                     map: new THREE.Texture(this._backgroundSinglePixelCanvas),
                     transparent: true
@@ -379,17 +345,14 @@ var Chameleon;
                 lambertMaterial.map.needsUpdate = true;
                 this._viewingMaterial.materials.push(lambertMaterial);
             }
-
             return this;
         };
-
         // Depends on the initialization of viewing texture
         TextureManager.prototype.initializeDrawingTexture = function () {
             this._drawingVertexUvs = [];
             for (var i = 0; i < this.geometry.vertices.length; i += 1) {
                 this._drawingVertexUvs.push(new THREE.Vector2());
             }
-
             this._drawingTextureUvs = [];
             var faces = this.geometry.faces;
             for (var i = 0; i < faces.length; i += 1) {
@@ -399,26 +362,21 @@ var Chameleon;
                     new THREE.Vector2()
                 ]);
             }
-
             this._drawingCanvas = document.createElement('canvas');
             this._drawingMaterial = new THREE.MeshLambertMaterial({
                 map: new THREE.Texture(this._drawingCanvas),
                 transparent: true
             });
             this._drawingTextureMesh = new THREE.Mesh(this.geometry, this._viewingMaterial);
-
             this._drawingTextureScene = new THREE.Scene();
             this._drawingTextureScene.add(new THREE.AmbientLight(0xFFFFFF));
             this._drawingTextureScene.add(this._drawingTextureMesh);
-
             return this;
         };
-
         TextureManager.prototype.prepareViewingTexture = function () {
             var _this = this;
             if (this._affectedFaces.length > 0) {
                 var uMax = Number.NEGATIVE_INFINITY, uMin = Number.POSITIVE_INFINITY, vMax = Number.NEGATIVE_INFINITY, vMin = Number.POSITIVE_INFINITY;
-
                 this._affectedFaces.forEach(function (faceIndex) {
                     var drawingUvs = _this._drawingTextureUvs[faceIndex];
                     uMax = Math.max(uMax, drawingUvs[0].x, drawingUvs[1].x, drawingUvs[2].x);
@@ -426,21 +384,17 @@ var Chameleon;
                     vMax = Math.max(vMax, drawingUvs[0].y, drawingUvs[1].y, drawingUvs[2].y);
                     vMin = Math.min(vMin, drawingUvs[0].y, drawingUvs[1].y, drawingUvs[2].y);
                 });
-
                 var xMax = uMax * this._drawingCanvas.width, xMin = uMin * this._drawingCanvas.width, yMax = (1 - vMin) * this._drawingCanvas.height, yMin = (1 - vMax) * this._drawingCanvas.height;
-
                 this.drawingContext.rect(xMin, yMin, xMax, yMax);
                 this.drawingContext.clip();
                 var patchCanvas = document.createElement('canvas');
                 patchCanvas.width = xMax - xMin;
                 patchCanvas.height = yMax - yMin;
                 patchCanvas.getContext('2d').drawImage(this._drawingCanvas, xMin, yMin, patchCanvas.width, patchCanvas.height, 0, 0, patchCanvas.width, patchCanvas.height);
-
                 this._affectedFaces.forEach(function (faceIndex) {
                     var faceMaterial = _this._viewingMaterial.materials[faceIndex];
                     faceMaterial.map.image = patchCanvas;
                     faceMaterial.map.needsUpdate = true;
-
                     var drawingUvs = _this._drawingTextureUvs[faceIndex];
                     var viewingUvs = _this._viewingTextureUvs[faceIndex];
                     for (var j = 0; j < 3; j += 1) {
@@ -448,39 +402,30 @@ var Chameleon;
                         viewingUvs[j].setX((drawingUV.x - uMin) * (_this._drawingCanvas.width) / patchCanvas.width).setY((drawingUV.y - vMin) * (_this._drawingCanvas.height) / patchCanvas.height);
                     }
                 });
-
                 this._affectedFaces.reset();
             }
-
             return this;
         };
-
         TextureManager.prototype.applyViewingTexture = function (mesh) {
             mesh.material = this._viewingMaterial;
             mesh.geometry.faceVertexUvs[0] = this._viewingTextureUvs;
             mesh.geometry.uvsNeedUpdate = true;
-
             return this;
         };
-
         TextureManager.prototype.prepareDrawingTexture = function () {
             // Assumption: when renderer is created, 'alpha' must be set to true
             var originalClearAlpha = this.renderer.getClearAlpha();
             var originalClearColor = this.renderer.getClearColor().clone();
             this.renderer.setClearColor(0, 0);
-
             this.renderer.render(this._drawingTextureScene, this.camera);
             this._drawingCanvas.width = this.renderer.domElement.width;
             this._drawingCanvas.height = this.renderer.domElement.height;
-
             this.drawingContext.drawImage(this.renderer.domElement, -2, 0);
             this.drawingContext.drawImage(this.renderer.domElement, 2, 0);
             this.drawingContext.drawImage(this.renderer.domElement, 0, -2);
             this.drawingContext.drawImage(this.renderer.domElement, 0, 2);
             this.drawingContext.drawImage(this.renderer.domElement, 0, 0);
-
             this._drawingMaterial.map.needsUpdate = true;
-
             var projectedPosition = new THREE.Vector3();
             for (var i = 0; i < this.geometry.vertices.length; i += 1) {
                 projectedPosition.copy(this.geometry.vertices[i]).project(this.camera);
@@ -491,29 +436,22 @@ var Chameleon;
                 this._drawingTextureUvs[i][1].copy(this._drawingVertexUvs[this.geometry.faces[i].b]);
                 this._drawingTextureUvs[i][2].copy(this._drawingVertexUvs[this.geometry.faces[i].c]);
             }
-
             this.renderer.setClearColor(originalClearColor, originalClearAlpha);
             return this;
         };
-
         TextureManager.prototype.applyDrawingTexture = function (mesh) {
             mesh.material = this._drawingMaterial;
             mesh.geometry.faceVertexUvs[0] = this._drawingTextureUvs;
             mesh.geometry.uvsNeedUpdate = true;
-
             return this;
         };
-
         TextureManager.prototype._castRayFromMouse = function (canvasPos) {
             var mouse3d = new THREE.Vector3(canvasPos.x / this._drawingCanvas.width * 2 - 1, -canvasPos.y / this._drawingCanvas.height * 2 + 1, -1.0);
             var direction = new THREE.Vector3(mouse3d.x, mouse3d.y, 1.0);
-
             mouse3d.unproject(this.camera);
             direction.unproject(this.camera).sub(mouse3d).normalize();
-
             return new THREE.Raycaster(mouse3d, direction).intersectObject(this._drawingTextureMesh);
         };
-
         TextureManager.prototype._pointCircleCollide = function (point, circle, r) {
             if (r === 0)
                 return false;
@@ -521,25 +459,20 @@ var Chameleon;
             var dy = circle.y - point.y;
             return dx * dx + dy * dy <= r * r;
         };
-
         TextureManager.prototype._lineCircleCollide = function (a, b, circle, radius) {
-            //check to see if start or end points lie within circle
+            //check to see if start or end points lie within circle 
             if (this._pointCircleCollide(a, circle, radius)) {
                 return true;
             }
-
             if (this._pointCircleCollide(b, circle, radius)) {
                 return true;
             }
-
             var x1 = a.x, y1 = a.y, x2 = b.x, y2 = b.y, cx = circle.x, cy = circle.y;
-
             var c1x = cx - x1;
             var c1y = cy - y1;
             var e1x = x2 - x1;
             var e1y = y2 - y1;
             var k = c1x * e1x + c1y * e1y;
-
             if (k > 0) {
                 var len = Math.sqrt(e1x * e1x + e1y * e1y);
                 k = k / len;
@@ -548,19 +481,15 @@ var Chameleon;
                         return true;
                 }
             }
-
             return false;
         };
-
         TextureManager.prototype._pointInTriangle = function (point, t0, t1, t2) {
             //compute vectors & dot products
             var cx = point.x, cy = point.y, v0x = t2.x - t0.x, v0y = t2.y - t0.y, v1x = t1.x - t0.x, v1y = t1.y - t0.y, v2x = cx - t0.x, v2y = cy - t0.y, dot00 = v0x * v0x + v0y * v0y, dot01 = v0x * v1x + v0y * v1y, dot02 = v0x * v2x + v0y * v2y, dot11 = v1x * v1x + v1y * v1y, dot12 = v1x * v2x + v1y * v2y;
-
             // Compute barycentric coordinates
             var b = (dot00 * dot11 - dot01 * dot01), inv = b === 0 ? 0 : (1 / b), u = (dot11 * dot02 - dot01 * dot12) * inv, v = (dot00 * dot12 - dot01 * dot02) * inv;
             return u >= 0 && v >= 0 && (u + v <= 1);
         };
-
         TextureManager.prototype._add_recursive = function (faceIndex, center, radius) {
             if (faceIndex >= 0 && !this._isFloodFill[faceIndex]) {
                 var v1 = new THREE.Vector2();
@@ -594,7 +523,6 @@ var Chameleon;
                 }
             }
         };
-
         TextureManager.prototype.onStrokePainted = function (canvasPos, radius) {
             var intersections = this._castRayFromMouse(canvasPos);
             if (intersections.length > 0) {
@@ -603,7 +531,6 @@ var Chameleon;
                 this._isFloodFill.set(this._isFloodFillEmpty);
                 this._add_recursive(faceIndex, canvasPos, radius);
             }
-
             return this;
         };
         return TextureManager;
@@ -624,23 +551,19 @@ var Chameleon;
             enumerable: true,
             configurable: true
         });
-
         Pencil.prototype.startStroke = function (canvas, position) {
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
             this._canvasContext.lineWidth = this.radius * 2;
-
             this._canvasContext.moveTo(position.x, position.y);
         };
-
         Pencil.prototype.continueStoke = function (position) {
             if (this._canvasContext) {
                 this._canvasContext.lineTo(position.x, position.y);
                 this._canvasContext.stroke();
             }
         };
-
         Pencil.prototype.finishStroke = function () {
             if (this._canvasContext) {
                 this._canvasContext.restore();
@@ -650,7 +573,6 @@ var Chameleon;
         return Pencil;
     })();
     Chameleon.Pencil = Pencil;
-
     var MarkerBrush = (function () {
         function MarkerBrush(radius, color) {
             this.radius = radius;
@@ -661,20 +583,17 @@ var Chameleon;
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
-
             this._canvasContext.lineWidth = this.radius * 2;
             this._canvasContext.strokeStyle = this.color;
             this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
             this._canvasContext.moveTo(position.x, position.y);
         };
-
         MarkerBrush.prototype.continueStoke = function (position) {
             if (this._canvasContext) {
                 this._canvasContext.lineTo(position.x, position.y);
                 this._canvasContext.stroke();
             }
         };
-
         MarkerBrush.prototype.finishStroke = function () {
             if (this._canvasContext) {
                 this._canvasContext.restore();
@@ -684,7 +603,6 @@ var Chameleon;
         return MarkerBrush;
     })();
     Chameleon.MarkerBrush = MarkerBrush;
-
     var BlurryMarkerBrush = (function () {
         function BlurryMarkerBrush(radius, color) {
             this.radius = radius;
@@ -695,7 +613,6 @@ var Chameleon;
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
-
             this._canvasContext.lineWidth = this.radius;
             this._canvasContext.strokeStyle = this.color;
             this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
@@ -703,14 +620,12 @@ var Chameleon;
             this._canvasContext.shadowColor = this.color;
             this._canvasContext.moveTo(position.x, position.y);
         };
-
         BlurryMarkerBrush.prototype.continueStoke = function (position) {
             if (this._canvasContext) {
                 this._canvasContext.lineTo(position.x, position.y);
                 this._canvasContext.stroke();
             }
         };
-
         BlurryMarkerBrush.prototype.finishStroke = function () {
             if (this._canvasContext) {
                 this._canvasContext.restore();
@@ -720,7 +635,6 @@ var Chameleon;
         return BlurryMarkerBrush;
     })();
     Chameleon.BlurryMarkerBrush = BlurryMarkerBrush;
-
     var CalligraphyBrush = (function () {
         function CalligraphyBrush() {
             this.img = new Image();
@@ -734,7 +648,6 @@ var Chameleon;
             enumerable: true,
             configurable: true
         });
-
         CalligraphyBrush.prototype.startStroke = function (canvas, position) {
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.beginPath();
@@ -743,22 +656,18 @@ var Chameleon;
             this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
             this._lastPosition.copy(position);
         };
-
         CalligraphyBrush.prototype.continueStoke = function (position) {
             if (this._canvasContext) {
                 var dist = this._lastPosition.distanceTo(position);
                 var angle = Chameleon.angleBetween(this._lastPosition, position);
-
                 for (var i = 0; i < dist; i++) {
                     var x = this._lastPosition.x + (Math.sin(angle) * i) - this.radius;
                     var y = this._lastPosition.y + (Math.cos(angle) * i) - this.radius;
                     this._canvasContext.drawImage(this.img, x, y);
                 }
-
                 this._lastPosition.copy(position);
             }
         };
-
         CalligraphyBrush.prototype.finishStroke = function () {
             if (this._canvasContext) {
                 this._canvasContext.restore();
@@ -768,7 +677,6 @@ var Chameleon;
         return CalligraphyBrush;
     })();
     Chameleon.CalligraphyBrush = CalligraphyBrush;
-
     var Fur = (function () {
         function Fur() {
             this.img = new Image();
@@ -782,23 +690,19 @@ var Chameleon;
             enumerable: true,
             configurable: true
         });
-
         Fur.prototype.startStroke = function (canvas, position) {
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
-
             this.img.src = 'image/brush3.png';
             this.img.width = 10;
             this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
             this._lastPosition.copy(position);
         };
-
         Fur.prototype.continueStoke = function (position) {
             if (this._canvasContext) {
                 var dist = this._lastPosition.distanceTo(position);
                 var angle = Chameleon.angleBetween(this._lastPosition, position);
-
                 for (var i = 0; i < dist; i++) {
                     var x = this._lastPosition.x + (Math.sin(angle) * i);
                     var y = this._lastPosition.y + (Math.cos(angle) * i);
@@ -809,11 +713,9 @@ var Chameleon;
                     this._canvasContext.drawImage(this.img, 0, 0);
                     this._canvasContext.restore();
                 }
-
                 this._lastPosition.copy(position);
             }
         };
-
         Fur.prototype.finishStroke = function () {
             if (this._canvasContext) {
                 this._canvasContext.restore();
@@ -823,7 +725,6 @@ var Chameleon;
         return Fur;
     })();
     Chameleon.Fur = Fur;
-
     var ThickBrush = (function () {
         function ThickBrush(radius, color) {
             this.radius = radius;
@@ -835,29 +736,24 @@ var Chameleon;
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
-
             this._canvasContext.lineWidth = this.radius / 10;
             this._canvasContext.strokeStyle = this.color;
             this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
             this._lastPosition.copy(position);
         };
-
         ThickBrush.prototype.continueStoke = function (position) {
             if (this._canvasContext) {
                 this._canvasContext.beginPath();
                 this._canvasContext.globalAlpha = 0.85;
-
                 for (var i = -this.radius * 0.9; i <= this.radius * 0.9; i += this.radius / 20) {
                     this._canvasContext.beginPath();
                     this._canvasContext.moveTo(this._lastPosition.x + i, this._lastPosition.y + i);
                     this._canvasContext.lineTo(position.x + i, position.y + i);
                     this._canvasContext.stroke();
                 }
-
                 this._lastPosition.copy(position);
             }
         };
-
         ThickBrush.prototype.finishStroke = function () {
             if (this._canvasContext) {
                 this._canvasContext.restore();
@@ -867,7 +763,6 @@ var Chameleon;
         return ThickBrush;
     })();
     Chameleon.ThickBrush = ThickBrush;
-
     var InkDropBrush = (function () {
         function InkDropBrush(radius, color) {
             this.radius = radius;
@@ -881,24 +776,20 @@ var Chameleon;
             this._canvasContext.arc(position.x, position.y, Chameleon.getRandomInt(this.radius / 3, this.radius), 30, 270, false);
             this._canvasContext.fill();
         };
-
         InkDropBrush.prototype.startStroke = function (canvas, position) {
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
-
             this._canvasContext.fillStyle = this.color;
             this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
             this._lastPosition.copy(position);
             this.drawDrop(position);
         };
-
         InkDropBrush.prototype.continueStoke = function (position) {
             if (this._canvasContext && position.distanceTo(this._lastPosition) > this.radius * 2 / 3) {
                 this._lastPosition.copy(position);
                 this.drawDrop(position);
             }
         };
-
         InkDropBrush.prototype.finishStroke = function () {
             if (this._canvasContext) {
                 this._canvasContext.restore();
@@ -908,7 +799,6 @@ var Chameleon;
         return InkDropBrush;
     })();
     Chameleon.InkDropBrush = InkDropBrush;
-
     var StarBrush = (function () {
         function StarBrush(radius, color) {
             this.radius = radius;
@@ -936,7 +826,6 @@ var Chameleon;
             this._canvasContext.stroke();
             this._canvasContext.restore();
         };
-
         StarBrush.prototype.startStroke = function (canvas, position) {
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.save();
@@ -945,14 +834,12 @@ var Chameleon;
             this.drawStar(position, Chameleon.getRandomInt(0, 180));
             this._lastPosition.copy(position);
         };
-
         StarBrush.prototype.continueStoke = function (position) {
             if (this._canvasContext && this._lastPosition.distanceTo(position) > this.radius) {
                 this.drawStar(position, Chameleon.getRandomInt(0, 180));
                 this._lastPosition.copy(position);
             }
         };
-
         StarBrush.prototype.finishStroke = function () {
             if (this._canvasContext) {
                 this._canvasContext.restore();
@@ -962,7 +849,6 @@ var Chameleon;
         return StarBrush;
     })();
     Chameleon.StarBrush = StarBrush;
-
     var RandomStarBrush = (function () {
         function RandomStarBrush(radius) {
             this.radius = radius;
@@ -971,7 +857,6 @@ var Chameleon;
         }
         RandomStarBrush.prototype.drawStar = function (position) {
             var angle = Chameleon.getRandomInt(0, 180), width = Chameleon.getRandomInt(1, this.radius / 2.8), opacity = Math.random(), scale = Chameleon.getRandomInt(10, 20) / 20, color = ('rgb(' + Chameleon.getRandomInt(0, 255) + ',' + Chameleon.getRandomInt(0, 255) + ',' + Chameleon.getRandomInt(0, 255) + ')'), length = this.radius / 3.5;
-
             this._canvasContext.save();
             this._canvasContext.translate(position.x, position.y);
             this._canvasContext.beginPath();
@@ -993,21 +878,18 @@ var Chameleon;
             this._canvasContext.stroke();
             this._canvasContext.restore();
         };
-
         RandomStarBrush.prototype.startStroke = function (canvas, position) {
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.save();
             this._lastPosition.copy(position);
             this.drawStar(position);
         };
-
         RandomStarBrush.prototype.continueStoke = function (position) {
             if (this._canvasContext && position.distanceTo(this._lastPosition) > this.radius * 2 / 3) {
                 this._lastPosition.copy(position);
                 this.drawStar(position);
             }
         };
-
         RandomStarBrush.prototype.finishStroke = function () {
             if (this._canvasContext) {
                 this._canvasContext.restore();
@@ -1017,7 +899,6 @@ var Chameleon;
         return RandomStarBrush;
     })();
     Chameleon.RandomStarBrush = RandomStarBrush;
-
     var SprayBrush = (function () {
         function SprayBrush(radius, color) {
             this.radius = radius;
@@ -1029,10 +910,8 @@ var Chameleon;
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
-
             this._canvasContext.fillStyle = this.color;
         };
-
         SprayBrush.prototype.continueStoke = function (position) {
             if (this._canvasContext) {
                 for (var i = this._density; i--;) {
@@ -1044,7 +923,6 @@ var Chameleon;
                 }
             }
         };
-
         SprayBrush.prototype.finishStroke = function () {
             if (this._canvasContext) {
                 this._canvasContext.restore();
@@ -1054,7 +932,6 @@ var Chameleon;
         return SprayBrush;
     })();
     Chameleon.SprayBrush = SprayBrush;
-
     var TextureBrush = (function () {
         function TextureBrush(radius, texture) {
             this.radius = radius;
@@ -1065,13 +942,11 @@ var Chameleon;
             this._canvasContext = canvas.getContext('2d');
             this._canvasContext.beginPath();
             this._canvasContext.save(); // Assumption: nobody else will call this until the stroke is finished
-
             this._canvasContext.lineWidth = this.radius * 2;
             this._canvasContext.lineJoin = this._canvasContext.lineCap = 'round';
             this._canvasContext.strokeStyle = this._canvasContext.createPattern(this.texture, 'repeat');
             this._canvasContext.moveTo(position.x, position.y);
         };
-
         TextureBrush.prototype.continueStoke = function (position) {
             if (this._canvasContext) {
                 this._canvasContext.lineTo(position.x, position.y);
@@ -1079,7 +954,6 @@ var Chameleon;
                 this._canvasContext.stroke();
             }
         };
-
         TextureBrush.prototype.finishStroke = function () {
             if (this._canvasContext) {
                 this._canvasContext.moveTo(0, 0);
@@ -1103,7 +977,6 @@ var Chameleon;
         ControlsState[ControlsState["Draw"] = 1] = "Draw";
         ControlsState[ControlsState["View"] = 2] = "View";
     })(ControlsState || (ControlsState = {}));
-
     var Controls = (function () {
         function Controls(geometry, canvas) {
             var _this = this;
@@ -1114,22 +987,16 @@ var Chameleon;
             this._perspectiveView = false;
             this._scene = (function () {
                 var scene = new THREE.Scene();
-
                 var ambientLight = new THREE.AmbientLight(0x777777);
                 scene.add(ambientLight);
-
                 var light = new THREE.DirectionalLight(0xFFFFFF, 0.2);
                 light.position.set(320, 390, 700);
                 scene.add(light);
-
                 var light2 = new THREE.DirectionalLight(0xFFFFFF, 0.2);
                 light2.position.set(-720, -190, -300);
                 scene.add(light2);
-
                 scene.add(_this._headLight);
-
                 scene.add(_this._mesh);
-
                 return scene;
             })();
             this._renderer = (function () {
@@ -1141,26 +1008,23 @@ var Chameleon;
             this._mousedown = function (event) {
                 event.preventDefault();
                 event.stopPropagation();
-
                 if (_this._state !== 0 /* Idle */) {
                     return;
                 }
-
                 // Hold shift key to rotate and pan
                 if (_this.perspectiveView || event.shiftKey) {
                     _this._state = 2 /* View */;
                     _this._useViewingTexture();
                     _this._perspectiveCameraControls.onMouseDown(event);
                     _this._orthographicCameraControls.onMouseDown(event);
-                } else {
+                }
+                else {
                     _this._state = 1 /* Draw */;
                     _this._useDrawingTexture();
-
                     var pos = Chameleon.mousePositionInCanvas(event, _this.canvasBox);
                     _this.brush.startStroke(_this._textureManager.drawingCanvas, pos);
                     _this._textureManager.onStrokePainted(pos, _this.brush.radius);
                 }
-
                 document.addEventListener('mousemove', _this._mousemove, false);
                 document.addEventListener('mouseup', _this._mouseup, false);
             };
@@ -1168,10 +1032,8 @@ var Chameleon;
                 if (_this._state === 0 /* Idle */) {
                     return;
                 }
-
                 event.preventDefault();
                 event.stopPropagation();
-
                 switch (_this._state) {
                     case 2 /* View */:
                         _this._perspectiveCameraControls.onMouseMove(event);
@@ -1189,51 +1051,40 @@ var Chameleon;
             this._mouseup = function (event) {
                 event.preventDefault();
                 event.stopPropagation();
-
                 _this.brush.finishStroke();
                 _this.update();
                 _this._perspectiveCameraControls.onMouseUp(event);
                 _this._orthographicCameraControls.onMouseUp(event);
                 _this._state = 0 /* Idle */;
-
                 document.removeEventListener('mousemove', _this._mousemove);
                 document.removeEventListener('mouseup', _this._mouseup);
             };
             this._mousewheel = function (event) {
                 event.preventDefault();
                 event.stopPropagation();
-
                 if (_this._state === 1 /* Draw */ || !_this.perspectiveView && !event.shiftKey) {
                     return;
                 }
-
                 _this._useViewingTexture();
                 _this._perspectiveCameraControls.onMouseWheel(event);
                 _this._orthographicCameraControls.onMouseWheel(event);
             };
             this._geometry = geometry.clone();
-
             // Note that a crucial assumption is that this Mesh object will never be transformed (rotated, scaled, or translated)
             // This is crucial for both TextureManager and CameraControls to work properly
             this._mesh.geometry = this._geometry;
-
             if (!canvas) {
                 canvas = document.createElement('canvas');
             }
             this.canvas = canvas;
-            this.canvas.addEventListener('contextmenu', function (e) {
-                return e.preventDefault();
-            }, false);
+            this.canvas.addEventListener('contextmenu', function (e) { return e.preventDefault(); }, false);
             this.canvas.addEventListener('mousedown', this._mousedown, false);
             this.canvas.addEventListener('mousewheel', this._mousewheel, false);
             this.canvas.addEventListener('DOMMouseScroll', this._mousewheel, false); // firefox
-
             this._initializeCamera();
-
             this._textureManager = new Chameleon.TextureManager(this._geometry, this._renderer, this._orthographicCamera);
             this._textureManager.applyViewingTexture(this._mesh);
             this._usingViewingTexture = true;
-
             this.handleResize();
             this.update();
         }
@@ -1245,7 +1096,6 @@ var Chameleon;
             this.canvasBox.width = canvasRect.width;
             this.canvasBox.height = canvasRect.height;
         };
-
         Object.defineProperty(Controls.prototype, "perspectiveView", {
             get: function () {
                 return this._perspectiveView;
@@ -1254,7 +1104,6 @@ var Chameleon;
                 if (this._perspectiveView === value) {
                     return;
                 }
-
                 this._perspectiveView = value;
                 if (value) {
                     this._useViewingTexture();
@@ -1263,8 +1112,6 @@ var Chameleon;
             enumerable: true,
             configurable: true
         });
-
-
         Object.defineProperty(Controls.prototype, "backgroundColor", {
             get: function () {
                 return this._textureManager.backgroundColor;
@@ -1277,8 +1124,6 @@ var Chameleon;
             enumerable: true,
             configurable: true
         });
-
-
         Controls.prototype.handleResize = function () {
             this._renderer.setSize(this.canvas.width, this.canvas.height);
             this.updateCanvasBox();
@@ -1286,92 +1131,72 @@ var Chameleon;
             this._perspectiveCameraControls.handleResize();
             this._useViewingTexture();
         };
-
         Controls.prototype.update = function () {
             this._perspectiveCameraControls.updateCamera();
             this._orthographicCameraControls.updateCamera();
             if (this.perspectiveView) {
                 this._headLight.position.copy(this._perspectiveCamera.position);
                 this._renderer.render(this._scene, this._perspectiveCamera);
-            } else {
+            }
+            else {
                 this._headLight.position.copy(this._orthographicCamera.position);
                 this._renderer.render(this._scene, this._orthographicCamera);
             }
-
             this.canvas.getContext('2d').drawImage(this._renderer.domElement, 0, 0);
         };
-
         Controls.prototype._useViewingTexture = function () {
             // If already using the viewing texture, do nothing
             if (this._usingViewingTexture) {
                 return;
             }
-
             this._textureManager.prepareViewingTexture().applyViewingTexture(this._mesh);
             this._usingViewingTexture = true;
         };
-
         Controls.prototype._useDrawingTexture = function () {
             // If already using the drawing texture, do nothing
             if (!this._usingViewingTexture) {
                 return;
             }
-
             this._textureManager.prepareDrawingTexture().applyDrawingTexture(this._mesh);
             this._usingViewingTexture = false;
         };
-
         Controls._computeBoundingBallRadius = function (geometry) {
             var radius = 0;
             var origin = new THREE.Vector3(0, 0, 0);
             for (var i = 0; i < geometry.vertices.length; i += 1) {
                 radius = Math.max(radius, geometry.vertices[i].distanceTo(origin));
             }
-
             return radius;
         };
-
         Controls.prototype._initializeCamera = function () {
             this._boundingBallRadius = Controls._computeBoundingBallRadius(this._geometry);
-
             var fov = 60;
             var z = 2 * this._boundingBallRadius / Math.tan(fov / 2 / 180 * Math.PI);
-
             this._orthographicCamera = new THREE.OrthographicCamera(-this._boundingBallRadius * 2, this._boundingBallRadius * 2, this._boundingBallRadius * 2, -this._boundingBallRadius * 2);
             this._orthographicCamera.position.z = z;
             this._orthographicCameraControls = new Chameleon.OrthographicCameraControls(this._orthographicCamera, this.canvasBox);
-
             this._perspectiveCamera = new THREE.PerspectiveCamera(fov, 1);
             this._perspectiveCamera.position.setZ(z);
             this._perspectiveCameraControls = new Chameleon.PerspectiveCameraControls(this._perspectiveCamera, this.canvasBox);
         };
-
         Controls.prototype.resetCameras = function () {
             var fov = 60;
             var z = 2 * this._boundingBallRadius / Math.tan(fov / 2 / 180 * Math.PI);
-
             this._orthographicCamera.position.set(0, 0, z);
             this._perspectiveCamera.position.set(0, 0, z);
-
             var origin = new THREE.Vector3(0, 0, 0);
-
             this._orthographicCameraControls.target.copy(origin);
             this._orthographicCamera.lookAt(origin);
             this._perspectiveCameraControls.target.copy(origin);
             this._perspectiveCamera.lookAt(origin);
-
             this._orthographicCamera.up.set(0, 1, 0);
             this._perspectiveCamera.up.set(0, 1, 0);
-
             this._orthographicCamera.zoom = 1;
             this._perspectiveCamera.zoom = 1;
-
             this._orthographicCamera.updateProjectionMatrix();
             this._perspectiveCamera.updateProjectionMatrix();
-
             this._orthographicCameraControls.handleResize();
             this._perspectiveCameraControls.handleResize();
-
             this._useViewingTexture();
         };
         return Controls;
@@ -1390,15 +1215,12 @@ var Chameleon;
 /// <reference path="./three.d.ts" />
 /// <reference path="./dat.gui.d.ts" />
 /// <reference path="./chameleon.ts" />
-
 (function () {
     function getGeometry() {
         return new THREE.CylinderGeometry(1, 1, 2);
     }
-
     var chameleon = Chameleon.create(getGeometry());
     document.body.appendChild(chameleon.canvas);
-
     var onresize = function () {
         chameleon.canvas.height = window.innerHeight;
         chameleon.canvas.width = window.innerWidth;
@@ -1406,7 +1228,6 @@ var Chameleon;
     };
     onresize();
     window.addEventListener('resize', onresize, false);
-
     function setUpBrushSettingsGui(settings, folder) {
         settings.brush = {
             type: null,
@@ -1414,97 +1235,97 @@ var Chameleon;
             color: '#00d3e1',
             texture: null
         };
-
         var loadTexture = function (path) {
             var textureSideLength = 512;
             var canvas = document.createElement('canvas');
             canvas.height = canvas.width = textureSideLength;
-
             var image = new Image();
             image.src = path;
             image.onload = function () {
                 canvas.getContext('2d').drawImage(image, 0, 0);
             };
-
             return canvas;
         };
         var textureItems = [
             {
                 name: 'Grass',
                 canvas: loadTexture('image/grass_texture.jpg')
-            }, {
+            },
+            {
                 name: 'Metal',
                 canvas: loadTexture('image/metal_texture.jpg')
-            }, {
+            },
+            {
                 name: 'Rock',
                 canvas: loadTexture('image/rock_texture.jpg')
-            }, {
+            },
+            {
                 name: 'Black Leather',
                 canvas: loadTexture('image/blackleather_texture.jpg')
             }
         ];
-
         var brushItems = [
             {
                 name: 'Marker',
                 instance: new Chameleon.MarkerBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
-            }, {
+            },
+            {
                 name: 'Blurry Marker',
                 instance: new Chameleon.BlurryMarkerBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
-            }, {
+            },
+            {
                 name: 'Calligraphy',
                 instance: new Chameleon.CalligraphyBrush()
-            }, {
+            },
+            {
                 name: 'Fur',
                 instance: new Chameleon.Fur()
-            }, {
+            },
+            {
                 name: 'Thick Brush',
                 instance: new Chameleon.ThickBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
-            }, {
+            },
+            {
                 name: 'Ink Drop',
                 instance: new Chameleon.InkDropBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
-            }, {
+            },
+            {
                 name: 'Star',
                 instance: new Chameleon.StarBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
-            }, {
+            },
+            {
                 name: 'Random Star',
                 instance: new Chameleon.RandomStarBrush(1),
                 sizeConfig: true
-            }, {
+            },
+            {
                 name: 'Spray',
                 instance: new Chameleon.SprayBrush(1, '#000000'),
                 sizeConfig: true,
                 colorConfig: true
-            }, {
+            },
+            {
                 name: 'Texture',
                 instance: new Chameleon.TextureBrush(1, textureItems[0].canvas),
                 sizeConfig: true,
                 textureConfig: true
             }
         ];
-
-        var typeController = folder.add(settings.brush, 'type', brushItems.map(function (_) {
-            return _.name;
-        })).name('Type');
+        var typeController = folder.add(settings.brush, 'type', brushItems.map(function (_) { return _.name; })).name('Type');
         var sizeController = folder.add(settings.brush, 'size', 1, 40).step(0.5).name('Size');
         var colorController = folder.addColor(settings.brush, 'color').name('Color');
-        var textureController = folder.add(settings.brush, 'texture', textureItems.map(function (_) {
-            return _.name;
-        })).name('Texture');
-
-        var handleSizeChange = function (newSize) {
-            return chameleon.brush.radius = newSize / 2;
-        };
+        var textureController = folder.add(settings.brush, 'texture', textureItems.map(function (_) { return _.name; })).name('Texture');
+        var handleSizeChange = function (newSize) { return chameleon.brush.radius = newSize / 2; };
         var handleColorChange = function (newColor) {
             if ('color' in chameleon.brush) {
                 chameleon.brush.color = newColor;
@@ -1525,29 +1346,23 @@ var Chameleon;
             for (var i = 0; i < brushItems.length; i += 1) {
                 if (brushItems[i].name === newType) {
                     chameleon.brush = brushItems[i].instance;
-
                     handleSizeChange(settings.brush.size);
                     handleColorChange(settings.brush.color);
                     handleTextureChange(settings.brush.texture);
-
                     sizeController.domElement.style.visibility = (brushItems[i].sizeConfig) ? 'visible' : 'collapse';
                     colorController.domElement.style.visibility = (brushItems[i].colorConfig) ? 'visible' : 'collapse';
                     textureController.domElement.style.visibility = (brushItems[i].textureConfig) ? 'visible' : 'collapse';
-
                     return;
                 }
             }
         };
-
         typeController.onChange(handleTypeChange);
         sizeController.onChange(handleSizeChange);
         colorController.onChange(handleColorChange);
         textureController.onChange(handleTextureChange);
-
         settings.brush.type = brushItems[0].name;
         handleTypeChange(settings.brush.type);
     }
-
     function setUpGui() {
         var settings = {
             backgroundColor: '#FFFFFF',
@@ -1559,39 +1374,30 @@ var Chameleon;
             }
         };
         var gui = new dat.GUI({ width: 310 });
-
-        gui.addColor(settings, 'backgroundColor').name('Background Reset').onChange(function (value) {
-            return chameleon.backgroundColor = value;
-        });
-
+        gui.addColor(settings, 'backgroundColor').name('Background Reset').onChange(function (value) { return chameleon.backgroundColor = value; });
         var cameraFolder = gui.addFolder('Camera');
         var brushFolder = gui.addFolder('Brush');
-
         cameraFolder.open();
         cameraFolder.add(settings.camera, 'perspectiveViewing').name('Perspective Viewing').onChange(function (value) {
             chameleon.perspectiveView = value;
             if (value) {
                 brushFolder.close();
-            } else {
+            }
+            else {
                 brushFolder.open();
             }
         });
         cameraFolder.add(settings.camera, 'reset').name('Reset');
-
         brushFolder.open();
-
         setUpBrushSettingsGui(settings, brushFolder);
     }
-
     window.onload = function () {
         setUpGui();
-
         // Render loop
         var render = function () {
             chameleon.update();
             requestAnimationFrame(render);
         };
-
         render();
     };
 })();
