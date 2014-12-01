@@ -1216,15 +1216,15 @@ var Chameleon;
 /// <reference path="./dat.gui.d.ts" />
 /// <reference path="./chameleon.ts" />
 (function () {
-    function getGeometry() {
-        return new THREE.CylinderGeometry(1, 1, 2);
-    }
-    var chameleon = Chameleon.create(getGeometry());
-    document.body.appendChild(chameleon.canvas);
+    var chameleon;
+    var screenCanvas = document.createElement('canvas');
+    document.body.appendChild(screenCanvas);
     var onresize = function () {
-        chameleon.canvas.height = window.innerHeight;
-        chameleon.canvas.width = window.innerWidth;
-        chameleon.handleResize();
+        screenCanvas.height = window.innerHeight;
+        screenCanvas.width = window.innerWidth;
+        if (chameleon) {
+            chameleon.handleResize();
+        }
     };
     onresize();
     window.addEventListener('resize', onresize, false);
@@ -1325,14 +1325,18 @@ var Chameleon;
         var sizeController = folder.add(settings.brush, 'size', 1, 40).step(0.5).name('Size');
         var colorController = folder.addColor(settings.brush, 'color').name('Color');
         var textureController = folder.add(settings.brush, 'texture', textureItems.map(function (_) { return _.name; })).name('Texture');
-        var handleSizeChange = function (newSize) { return chameleon.brush.radius = newSize / 2; };
+        var handleSizeChange = function (newSize) {
+            if (chameleon) {
+                chameleon.brush.radius = newSize / 2;
+            }
+        };
         var handleColorChange = function (newColor) {
-            if ('color' in chameleon.brush) {
+            if (chameleon && ('color' in chameleon.brush)) {
                 chameleon.brush.color = newColor;
             }
         };
         var handleTextureChange = function (newTexture) {
-            if (!('texture' in chameleon.brush)) {
+            if (!chameleon || !('texture' in chameleon.brush)) {
                 return;
             }
             for (var i = 0; i < textureItems.length; i += 1) {
@@ -1343,6 +1347,9 @@ var Chameleon;
             }
         };
         var handleTypeChange = function (newType) {
+            if (!chameleon) {
+                return;
+            }
             for (var i = 0; i < brushItems.length; i += 1) {
                 if (brushItems[i].name === newType) {
                     chameleon.brush = brushItems[i].instance;
@@ -1361,41 +1368,65 @@ var Chameleon;
         colorController.onChange(handleColorChange);
         textureController.onChange(handleTextureChange);
         settings.brush.type = brushItems[0].name;
-        handleTypeChange(settings.brush.type);
+        return function () {
+            handleTypeChange(settings.brush.type);
+        };
     }
     function setUpGui() {
         var settings = {
             backgroundColor: '#FFFFFF',
             camera: {
                 reset: function () {
-                    chameleon.resetCameras();
+                    if (chameleon) {
+                        chameleon.resetCameras();
+                    }
                 },
-                perspectiveViewing: false
+                perspectiveView: false
             }
         };
         var gui = new dat.GUI({ width: 310 });
-        gui.addColor(settings, 'backgroundColor').name('Background Reset').onChange(function (value) { return chameleon.backgroundColor = value; });
+        var handleBackgroundReset = function (color) {
+            if (chameleon) {
+                chameleon.backgroundColor = color;
+            }
+        };
+        gui.addColor(settings, 'backgroundColor').name('Background Reset').onChange(handleBackgroundReset);
         var cameraFolder = gui.addFolder('Camera');
         var brushFolder = gui.addFolder('Brush');
         cameraFolder.open();
-        cameraFolder.add(settings.camera, 'perspectiveViewing').name('Perspective Viewing').onChange(function (value) {
-            chameleon.perspectiveView = value;
-            if (value) {
+        var handlePerspectiveView = function (perspectiveVIew) {
+            if (chameleon) {
+                chameleon.perspectiveView = perspectiveVIew;
+            }
+            if (perspectiveVIew) {
                 brushFolder.close();
             }
             else {
                 brushFolder.open();
             }
-        });
+        };
+        cameraFolder.add(settings.camera, 'perspectiveView').name('Perspective Viewing').onChange(handlePerspectiveView);
         cameraFolder.add(settings.camera, 'reset').name('Reset');
         brushFolder.open();
-        setUpBrushSettingsGui(settings, brushFolder);
+        var reapplyBrushGuiSettings = setUpBrushSettingsGui(settings, brushFolder);
+        return function () {
+            handleBackgroundReset(settings.backgroundColor);
+            handlePerspectiveView(settings.camera.perspectiveView);
+            reapplyBrushGuiSettings();
+        };
+    }
+    var reapplyGuiSettings = setUpGui();
+    function loadGeometry(geometry) {
+        chameleon = Chameleon.create(geometry, screenCanvas);
+        reapplyGuiSettings();
     }
     window.onload = function () {
-        setUpGui();
+        loadGeometry(new THREE.CylinderGeometry(1, 1, 2));
         // Render loop
         var render = function () {
-            chameleon.update();
+            if (chameleon) {
+                chameleon.update();
+            }
             requestAnimationFrame(render);
         };
         render();

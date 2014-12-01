@@ -16,17 +16,19 @@ interface TextureItem {
 }
 
 (() => {
-    function getGeometry() {
-        return new THREE.CylinderGeometry(1, 1, 2);
-    }
 
-    var chameleon = Chameleon.create(getGeometry());
-    document.body.appendChild(chameleon.canvas);
+    var chameleon: Chameleon.Controls;
+    var screenCanvas = document.createElement('canvas');
+
+    document.body.appendChild(screenCanvas);
 
     var onresize = () => {
-        chameleon.canvas.height = window.innerHeight;
-        chameleon.canvas.width = window.innerWidth;
-        chameleon.handleResize();
+        screenCanvas.height = window.innerHeight;
+        screenCanvas.width = window.innerWidth;
+
+        if (chameleon) {
+            chameleon.handleResize();
+        }
     };
     onresize();
     window.addEventListener('resize', onresize, false);
@@ -122,14 +124,18 @@ interface TextureItem {
         var colorController = folder.addColor(settings.brush, 'color').name('Color');
         var textureController = folder.add(settings.brush, 'texture', textureItems.map((_)=>_.name)).name('Texture');
 
-        var handleSizeChange = (newSize) => chameleon.brush.radius = newSize / 2;
+        var handleSizeChange = (newSize) => {
+            if (chameleon) {
+                chameleon.brush.radius = newSize / 2;
+            }
+        };
         var handleColorChange = (newColor) => {
-            if ('color' in chameleon.brush) {
+            if (chameleon && ('color' in chameleon.brush)) {
                 (<any>chameleon.brush).color = newColor;
             }
         };
         var handleTextureChange = (newTexture) => {
-            if (!('texture' in chameleon.brush)) {
+            if (!chameleon || !('texture' in chameleon.brush)) {
                 return;
             }
             for (var i = 0; i < textureItems.length; i += 1) {
@@ -140,6 +146,10 @@ interface TextureItem {
             }
         };
         var handleTypeChange = (newType) => {
+            if (!chameleon) {
+                return;
+            }
+
             for (var i = 0; i < brushItems.length; i += 1) {
                 if (brushItems[i].name === newType) {
                     chameleon.brush = brushItems[i].instance;
@@ -163,7 +173,10 @@ interface TextureItem {
         textureController.onChange(handleTextureChange);
 
         settings.brush.type = brushItems[0].name;
-        handleTypeChange(settings.brush.type);
+
+        return () => {
+            handleTypeChange(settings.brush.type);
+        };
     }
 
     function setUpGui() {
@@ -171,44 +184,65 @@ interface TextureItem {
             backgroundColor: '#FFFFFF',
             camera: {
                 reset: () => {
-                    chameleon.resetCameras();
+                    if (chameleon) {
+                        chameleon.resetCameras();
+                    }
                 },
-                perspectiveViewing: false
+                perspectiveView: false
             }
         };
         var gui = new dat.GUI({width: 310});
 
-        gui.addColor(settings, 'backgroundColor').name('Background Reset').onChange(
-            (value) =>  chameleon.backgroundColor = value
-        );
+        var handleBackgroundReset = (color) => {
+            if (chameleon) {
+                chameleon.backgroundColor = color;
+            }
+        };
+        gui.addColor(settings, 'backgroundColor').name('Background Reset').onChange(handleBackgroundReset);
 
         var cameraFolder = gui.addFolder('Camera');
         var brushFolder = gui.addFolder('Brush');
 
         cameraFolder.open();
-        cameraFolder.add(settings.camera, 'perspectiveViewing').name('Perspective Viewing').onChange(
-            (value) => {
-                chameleon.perspectiveView = value;
-                if (value) {
-                    brushFolder.close();
-                } else {
-                    brushFolder.open();
-                }
+        var handlePerspectiveView = (perspectiveVIew) => {
+            if (chameleon) {
+                chameleon.perspectiveView = perspectiveVIew;
             }
-        );
+            if (perspectiveVIew) {
+                brushFolder.close();
+            } else {
+                brushFolder.open();
+            }
+        };
+        cameraFolder.add(settings.camera, 'perspectiveView').name('Perspective Viewing').onChange(handlePerspectiveView);
         cameraFolder.add(settings.camera, 'reset').name('Reset');
 
         brushFolder.open();
 
-        setUpBrushSettingsGui(settings, brushFolder);
+        var reapplyBrushGuiSettings = setUpBrushSettingsGui(settings, brushFolder);
+
+        return () => {
+            handleBackgroundReset(settings.backgroundColor);
+            handlePerspectiveView(settings.camera.perspectiveView);
+            reapplyBrushGuiSettings();
+        };
+    }
+
+    var reapplyGuiSettings = setUpGui();
+
+    function loadGeometry(geometry: THREE.Geometry) {
+        chameleon = Chameleon.create(geometry, screenCanvas);
+        reapplyGuiSettings();
     }
 
     window.onload = function () {
-        setUpGui();
+        loadGeometry(new THREE.CylinderGeometry(1, 1, 2));
 
         // Render loop
         var render = () => {
-            chameleon.update();
+            if (chameleon) {
+                chameleon.update();
+            }
             requestAnimationFrame(render);
         };
 
