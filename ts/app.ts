@@ -1,4 +1,5 @@
 /// <reference path="./three.d.ts" />
+/// <reference path="./three-objloaderexporter.d.ts" />
 /// <reference path="./dat.gui.d.ts" />
 /// <reference path="./chameleon.ts" />
 
@@ -234,6 +235,37 @@ interface TextureItem {
         chameleon = Chameleon.create(geometry, screenCanvas);
         reapplyGuiSettings();
     }
+
+    function loadOBJ(text: string) {
+        var manager = new THREE.LoadingManager();
+        var loader = new THREE.OBJLoader(manager);
+
+        var object3d = loader.parse(text);
+        var geometry = new THREE.Geometry();
+        object3d.traverse((child: THREE.Object3D) => {
+            if ((child instanceof THREE.Mesh) && !(child.parent instanceof THREE.Mesh)) {
+                var mesh = <THREE.Mesh>child;
+                if (mesh.geometry instanceof THREE.BufferGeometry) {
+                    mesh.geometry = new THREE.Geometry().fromBufferGeometry(<any>mesh.geometry);
+                    mesh.geometry.faceVertexUvs = [[]];
+                    mesh.geometry.uvsNeedUpdate = true;
+                }
+                THREE.GeometryUtils.merge(geometry, mesh);
+            }
+        });
+        loadGeometry(geometry);
+    }
+
+    screenCanvas.ondragover = () => false;
+    screenCanvas.ondrop = (e) => {
+        e.preventDefault();
+
+        var file: File = e.dataTransfer.files[0],
+            reader = new FileReader();
+
+        reader.onload = () => loadOBJ(reader.result);
+        reader.readAsText(file);
+    };
 
     window.onload = function () {
         loadGeometry(new THREE.CylinderGeometry(1, 1, 2));

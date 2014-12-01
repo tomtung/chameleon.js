@@ -1213,6 +1213,7 @@ var Chameleon;
     Chameleon.create = create;
 })(Chameleon || (Chameleon = {}));
 /// <reference path="./three.d.ts" />
+/// <reference path="./three-objloaderexporter.d.ts" />
 /// <reference path="./dat.gui.d.ts" />
 /// <reference path="./chameleon.ts" />
 (function () {
@@ -1420,6 +1421,31 @@ var Chameleon;
         chameleon = Chameleon.create(geometry, screenCanvas);
         reapplyGuiSettings();
     }
+    function loadOBJ(text) {
+        var manager = new THREE.LoadingManager();
+        var loader = new THREE.OBJLoader(manager);
+        var object3d = loader.parse(text);
+        var geometry = new THREE.Geometry();
+        object3d.traverse(function (child) {
+            if ((child instanceof THREE.Mesh) && !(child.parent instanceof THREE.Mesh)) {
+                var mesh = child;
+                if (mesh.geometry instanceof THREE.BufferGeometry) {
+                    mesh.geometry = new THREE.Geometry().fromBufferGeometry(mesh.geometry);
+                    mesh.geometry.faceVertexUvs = [[]];
+                    mesh.geometry.uvsNeedUpdate = true;
+                }
+                THREE.GeometryUtils.merge(geometry, mesh);
+            }
+        });
+        loadGeometry(geometry);
+    }
+    screenCanvas.ondragover = function () { return false; };
+    screenCanvas.ondrop = function (e) {
+        e.preventDefault();
+        var file = e.dataTransfer.files[0], reader = new FileReader();
+        reader.onload = function () { return loadOBJ(reader.result); };
+        reader.readAsText(file);
+    };
     window.onload = function () {
         loadGeometry(new THREE.CylinderGeometry(1, 1, 2));
         // Render loop
