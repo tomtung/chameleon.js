@@ -12,7 +12,7 @@ module Chameleon {
 
         private _state: ControlsState = ControlsState.Idle;
 
-        private _geometry: THREE.Geometry;
+        geometry: THREE.Geometry;
         private _mesh: THREE.Mesh = new THREE.Mesh();
         canvas: HTMLCanvasElement;
 
@@ -228,7 +228,7 @@ module Chameleon {
         }
 
         private _initializeCamera() {
-            this._boundingBallRadius = Controls._computeBoundingBallRadius(this._geometry);
+            this._boundingBallRadius = Controls._computeBoundingBallRadius(this.geometry);
 
             var fov = 60;
             var z = 2 * this._boundingBallRadius / Math.tan(fov / 2 / 180 * Math.PI);
@@ -277,10 +277,10 @@ module Chameleon {
         }
 
         constructor(geometry: THREE.Geometry, canvas?: HTMLCanvasElement) {
-            this._geometry = geometry.clone();
+            this.geometry = geometry.clone();
             // Note that a crucial assumption is that this Mesh object will never be transformed (rotated, scaled, or translated)
             // This is crucial for both TextureManager and CameraControls to work properly
-            this._mesh.geometry = this._geometry;
+            this._mesh.geometry = this.geometry;
 
             if (!canvas) {
                 canvas = document.createElement('canvas');
@@ -293,7 +293,7 @@ module Chameleon {
 
             this._initializeCamera();
 
-            this._textureManager = new TextureManager(this._geometry, this._renderer, this._orthographicCamera);
+            this._textureManager = new TextureManager(this.geometry, this._renderer, this._orthographicCamera);
             this._textureManager.applyViewingTexture(this._mesh);
             this._usingViewingTexture = true;
 

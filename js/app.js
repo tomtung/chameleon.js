@@ -1069,10 +1069,10 @@ var Chameleon;
                 _this._perspectiveCameraControls.onMouseWheel(event);
                 _this._orthographicCameraControls.onMouseWheel(event);
             };
-            this._geometry = geometry.clone();
+            this.geometry = geometry.clone();
             // Note that a crucial assumption is that this Mesh object will never be transformed (rotated, scaled, or translated)
             // This is crucial for both TextureManager and CameraControls to work properly
-            this._mesh.geometry = this._geometry;
+            this._mesh.geometry = this.geometry;
             if (!canvas) {
                 canvas = document.createElement('canvas');
             }
@@ -1082,7 +1082,7 @@ var Chameleon;
             this.canvas.addEventListener('mousewheel', this._mousewheel, false);
             this.canvas.addEventListener('DOMMouseScroll', this._mousewheel, false); // firefox
             this._initializeCamera();
-            this._textureManager = new Chameleon.TextureManager(this._geometry, this._renderer, this._orthographicCamera);
+            this._textureManager = new Chameleon.TextureManager(this.geometry, this._renderer, this._orthographicCamera);
             this._textureManager.applyViewingTexture(this._mesh);
             this._usingViewingTexture = true;
             this.handleResize();
@@ -1169,7 +1169,7 @@ var Chameleon;
             return radius;
         };
         Controls.prototype._initializeCamera = function () {
-            this._boundingBallRadius = Controls._computeBoundingBallRadius(this._geometry);
+            this._boundingBallRadius = Controls._computeBoundingBallRadius(this.geometry);
             var fov = 60;
             var z = 2 * this._boundingBallRadius / Math.tan(fov / 2 / 180 * Math.PI);
             this._orthographicCamera = new THREE.OrthographicCamera(-this._boundingBallRadius * 2, this._boundingBallRadius * 2, this._boundingBallRadius * 2, -this._boundingBallRadius * 2);
@@ -1383,9 +1383,25 @@ var Chameleon;
                     }
                 },
                 perspectiveView: false
+            },
+            exportObjTexture: function () {
+                if (chameleon) {
+                    chameleon.resetCameras(); // Force using viewing texture
+                    var objData = new THREE.OBJExporter().parse(chameleon.geometry);
+                    var objUrl = URL.createObjectURL(new Blob([objData], { type: 'text/plain' }));
+                    var newWindow = window.open();
+                    var a = newWindow.document.createElement('a');
+                    a.href = objUrl;
+                    a.setAttribute('download', 'model.obj');
+                    newWindow.document.body.appendChild(a);
+                    a.click();
+                    setTimeout(function () {
+                        newWindow.close();
+                    }, 200);
+                }
             }
         };
-        var gui = new dat.GUI({ width: 310 });
+        var gui = new dat.GUI({ width: 350 });
         var handleBackgroundReset = function (color) {
             if (chameleon) {
                 chameleon.backgroundColor = color;
@@ -1410,6 +1426,7 @@ var Chameleon;
         cameraFolder.add(settings.camera, 'reset').name('Reset');
         brushFolder.open();
         var reapplyBrushGuiSettings = setUpBrushSettingsGui(settings, brushFolder);
+        gui.add(settings, 'exportObjTexture').name('Export Textured Model');
         return function () {
             handleBackgroundReset(settings.backgroundColor);
             handlePerspectiveView(settings.camera.perspectiveView);
@@ -1420,6 +1437,7 @@ var Chameleon;
     function loadGeometry(geometry) {
         chameleon = Chameleon.create(geometry, screenCanvas);
         reapplyGuiSettings();
+        console.log('New Model Loaded.');
     }
     function loadOBJ(text) {
         var manager = new THREE.LoadingManager();

@@ -190,9 +190,27 @@ interface TextureItem {
                     }
                 },
                 perspectiveView: false
+            },
+            exportObjTexture: () => {
+                if (chameleon) {
+                    chameleon.resetCameras(); // Force using viewing texture
+                    var objData = new THREE.OBJExporter().parse(chameleon.geometry);
+                    var objUrl = URL.createObjectURL(new Blob([objData], {type: 'text/plain'}));
+
+                    var newWindow = window.open();
+                    var a = newWindow.document.createElement('a');
+                    a.href = objUrl;
+                    a.setAttribute('download', 'model.obj');
+                    newWindow.document.body.appendChild(a);
+                    a.click();
+
+                    setTimeout(() => {
+                        newWindow.close();
+                    }, 200);
+                }
             }
         };
-        var gui = new dat.GUI({width: 310});
+        var gui = new dat.GUI({width: 350});
 
         var handleBackgroundReset = (color) => {
             if (chameleon) {
@@ -222,6 +240,8 @@ interface TextureItem {
 
         var reapplyBrushGuiSettings = setUpBrushSettingsGui(settings, brushFolder);
 
+        gui.add(settings, 'exportObjTexture').name('Export Textured Model');
+
         return () => {
             handleBackgroundReset(settings.backgroundColor);
             handlePerspectiveView(settings.camera.perspectiveView);
@@ -234,6 +254,7 @@ interface TextureItem {
     function loadGeometry(geometry: THREE.Geometry) {
         chameleon = Chameleon.create(geometry, screenCanvas);
         reapplyGuiSettings();
+        console.log('New Model Loaded.');
     }
 
     function loadOBJ(text: string) {
