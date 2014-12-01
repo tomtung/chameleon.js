@@ -391,7 +391,7 @@ module Chameleon {
             this._nAdjacentFaces = new Uint8Array(this.geometry.faces.length);
             this._AdjacentFacesList = new Array(this.geometry.faces.length);
             for (var i = 0; i < this.geometry.faces.length; i += 1) {
-                this._AdjacentFacesList[i] = new Uint32Array(this.geometry.faces.length);
+                this._AdjacentFacesList[i] = new Uint32Array(10);
             }
             for (var i = 0; i < this.geometry.faces.length - 1; i += 1) {
                 for (var j = i + 1; j < this.geometry.faces.length; j += 1) {
