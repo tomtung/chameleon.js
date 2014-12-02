@@ -1348,6 +1348,13 @@ var Chameleon;
             zip.file('model.obj', objData);
             return zip.generate({ type: 'blob' });
         };
+        Controls.prototype.removeEventListeners = function () {
+            document.removeEventListener('mousedown', this._mousedown);
+            document.removeEventListener('mousewheel', this._mousewheel);
+            document.removeEventListener('DOMMouseScroll', this._mousewheel);
+            document.removeEventListener('mousemove', this._mousemove);
+            document.removeEventListener('mouseup', this._mouseup);
+        };
         return Controls;
     })();
     Chameleon.Controls = Controls;
@@ -1573,6 +1580,9 @@ var Chameleon;
     }
     var reapplyGuiSettings = setUpGui();
     function loadGeometry(geometry) {
+        if (chameleon) {
+            chameleon.removeEventListeners();
+        }
         chameleon = Chameleon.create(geometry, screenCanvas);
         reapplyGuiSettings();
         console.log('New Model Loaded.');

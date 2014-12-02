@@ -241,6 +241,10 @@ declare var saveAs: any; // https://github.com/eligrey/FileSaver.js
     var reapplyGuiSettings = setUpGui();
 
     function loadGeometry(geometry: THREE.Geometry) {
+        if (chameleon) {
+            chameleon.removeEventListeners();
+        }
+
         chameleon = Chameleon.create(geometry, screenCanvas);
         reapplyGuiSettings();
         console.log('New Model Loaded.');

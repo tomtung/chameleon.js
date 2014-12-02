@@ -269,6 +269,14 @@ module Chameleon {
             return zip.generate({type: 'blob'});
         }
 
+        removeEventListeners() {
+            document.removeEventListener('mousedown', this._mousedown);
+            document.removeEventListener('mousewheel', this._mousewheel);
+            document.removeEventListener('DOMMouseScroll', this._mousewheel);
+            document.removeEventListener('mousemove', this._mousemove);
+            document.removeEventListener('mouseup', this._mouseup);
+        }
+
         constructor(geometry: THREE.Geometry, canvas?: HTMLCanvasElement) {
             this.geometry = geometry.clone();
             // Note that a crucial assumption is that this Mesh object will never be transformed (rotated, scaled, or translated)
