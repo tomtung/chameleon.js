@@ -250,11 +250,7 @@ declare var saveAs: any; // https://github.com/eligrey/FileSaver.js
         console.log('New Model Loaded.');
     }
 
-    function loadOBJ(text: string) {
-        var manager = new THREE.LoadingManager();
-        var loader = new THREE.OBJLoader(manager);
-
-        var object3d = loader.parse(text);
+    function object3dToGeometry(object3d: THREE.Object3D): THREE.Geometry {
         var geometry = new THREE.Geometry();
         object3d.traverse((child: THREE.Object3D) => {
             if ((child instanceof THREE.Mesh) && !(child.parent instanceof THREE.Mesh)) {
@@ -267,8 +263,10 @@ declare var saveAs: any; // https://github.com/eligrey/FileSaver.js
                 THREE.GeometryUtils.merge(geometry, mesh);
             }
         });
-        loadGeometry(geometry);
+        return geometry;
     }
+
+    var objLoader = new THREE.OBJLoader();
 
     screenCanvas.ondragover = () => false;
     screenCanvas.ondrop = (e) => {
@@ -277,12 +275,20 @@ declare var saveAs: any; // https://github.com/eligrey/FileSaver.js
         var file: File = e.dataTransfer.files[0],
             reader = new FileReader();
 
-        reader.onload = () => loadOBJ(reader.result);
+        reader.onload = () => {
+            var object3d = objLoader.parse(reader.result);
+            loadGeometry(object3dToGeometry(object3d));
+        };
         reader.readAsText(file);
     };
 
     window.onload = function () {
-        loadGeometry(new THREE.CylinderGeometry(1, 1, 2));
+        objLoader.load('models/chameleon.obj', (object3d) => {
+            var geometry = object3dToGeometry(object3d);
+            geometry.applyMatrix(new THREE.Matrix4().makeRotationY(Math.PI / 2));
+            geometry.applyMatrix(new THREE.Matrix4().makeTranslation(0, -1, 0));
+            loadGeometry(geometry);
+        });
 
         // Render loop
         var render = () => {

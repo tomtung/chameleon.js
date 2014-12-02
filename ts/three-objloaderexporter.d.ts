@@ -2,7 +2,7 @@
 
 declare module THREE {
     export class OBJLoader extends EventDispatcher {
-        constructor(loadingManager: THREE.LoadingManager);
+        constructor(loadingManager?: THREE.LoadingManager);
         load(url: string, callback?: (response: any) => any): void;
         parse(data: any): any;
     }

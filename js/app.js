@@ -1642,10 +1642,7 @@ var Chameleon;
         reapplyGuiSettings();
         console.log('New Model Loaded.');
     }
-    function loadOBJ(text) {
-        var manager = new THREE.LoadingManager();
-        var loader = new THREE.OBJLoader(manager);
-        var object3d = loader.parse(text);
+    function object3dToGeometry(object3d) {
         var geometry = new THREE.Geometry();
         object3d.traverse(function (child) {
             if ((child instanceof THREE.Mesh) && !(child.parent instanceof THREE.Mesh)) {
@@ -1658,17 +1655,26 @@ var Chameleon;
                 THREE.GeometryUtils.merge(geometry, mesh);
             }
         });
-        loadGeometry(geometry);
+        return geometry;
     }
+    var objLoader = new THREE.OBJLoader();
     screenCanvas.ondragover = function () { return false; };
     screenCanvas.ondrop = function (e) {
         e.preventDefault();
         var file = e.dataTransfer.files[0], reader = new FileReader();
-        reader.onload = function () { return loadOBJ(reader.result); };
+        reader.onload = function () {
+            var object3d = objLoader.parse(reader.result);
+            loadGeometry(object3dToGeometry(object3d));
+        };
         reader.readAsText(file);
     };
     window.onload = function () {
-        loadGeometry(new THREE.CylinderGeometry(1, 1, 2));
+        objLoader.load('models/chameleon.obj', function (object3d) {
+            var geometry = object3dToGeometry(object3d);
+            geometry.applyMatrix(new THREE.Matrix4().makeRotationY(Math.PI / 2));
+            geometry.applyMatrix(new THREE.Matrix4().makeTranslation(0, -1, 0));
+            loadGeometry(geometry);
+        });
         // Render loop
         var render = function () {
             if (chameleon) {
