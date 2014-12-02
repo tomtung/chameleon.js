@@ -56,6 +56,7 @@ module Chameleon {
         private _camera: THREE.OrthographicCamera;
         private _viewingTextureUvs: THREE.Vector2[][];
         private _viewingMaterial: THREE.MeshFaceMaterial;
+        private _viewingBackgroundMaterial: THREE.MeshLambertMaterial;
         private _packedTextureUvs: THREE.Vector2[][];
         private _packedTextureCanvas: HTMLCanvasElement;
         private _packedTextureMaterial: THREE.MeshLambertMaterial;
@@ -130,10 +131,10 @@ module Chameleon {
             context.fillStyle = this.backgroundColor;
             context.fillRect(0, 0, 1, 1);
 
+            this._viewingBackgroundMaterial.map.needsUpdate = true;
+
             for (var i = 0; i < this.geometry.faces.length; i += 1) {
-                var faceMaterial = <THREE.MeshLambertMaterial>this._viewingMaterial.materials[i];
-                faceMaterial.map.image = this._backgroundSinglePixelCanvas;
-                faceMaterial.map.needsUpdate = true;
+                this._viewingMaterial.materials[i] = this._viewingBackgroundMaterial;
                 for (var j = 0; j < this._viewingTextureUvs[i].length; j += 1) {
                     this._viewingTextureUvs[i][j].set(0.5, 0.5);
                 }
@@ -148,8 +149,15 @@ module Chameleon {
             context.fillRect(0, 0, 1, 1);
 
             this._viewingTextureUvs = [];
-            var faces = this.geometry.faces;
             this._viewingMaterial = new THREE.MeshFaceMaterial();
+
+            this._viewingBackgroundMaterial = new THREE.MeshLambertMaterial({
+                map: new THREE.Texture(this._backgroundSinglePixelCanvas),
+                transparent: true
+            });
+            this._viewingBackgroundMaterial.map.needsUpdate = true;
+
+            var faces = this.geometry.faces;
             for (var i = 0; i < faces.length; i += 1) {
                 // Set the materialIndex to be the face index
                 // TextureManager requires this special treatment to work
@@ -160,12 +168,7 @@ module Chameleon {
                     new THREE.Vector2(0.5, 0.5)
                 ]);
 
-                var lambertMaterial = new THREE.MeshLambertMaterial({
-                    map: new THREE.Texture(this._backgroundSinglePixelCanvas),
-                    transparent: true
-                });
-                lambertMaterial.map.needsUpdate = true;
-                this._viewingMaterial.materials.push(lambertMaterial);
+                this._viewingMaterial.materials.push(this._viewingBackgroundMaterial);
             }
 
             return this;
@@ -252,10 +255,14 @@ module Chameleon {
                     0, 0, patchCanvas.width, patchCanvas.height
                 );
 
+                var patchMaterial = new THREE.MeshLambertMaterial({
+                        map: new THREE.Texture(patchCanvas),
+                        transparent: true
+                    });
+                patchMaterial.map.needsUpdate = true;
+
                 this._affectedFaces.forEach((faceIndex) => {
-                    var faceMaterial = <THREE.MeshLambertMaterial>this._viewingMaterial.materials[faceIndex];
-                    faceMaterial.map.image = patchCanvas;
-                    faceMaterial.map.needsUpdate = true;
+                    this._viewingMaterial.materials[faceIndex] = patchMaterial;
 
                     var drawingUvs = this._drawingTextureUvs[faceIndex];
                     var viewingUvs = this._viewingTextureUvs[faceIndex];
