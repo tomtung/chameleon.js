@@ -256,9 +256,9 @@ module Chameleon {
                 );
 
                 var patchMaterial = new THREE.MeshLambertMaterial({
-                        map: new THREE.Texture(patchCanvas),
-                        transparent: true
-                    });
+                    map: new THREE.Texture(patchCanvas),
+                    transparent: true
+                });
                 patchMaterial.map.needsUpdate = true;
 
                 this._affectedFaces.forEach((faceIndex) => {
