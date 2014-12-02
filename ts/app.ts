@@ -16,6 +16,8 @@ interface TextureItem {
     canvas: HTMLCanvasElement
 }
 
+declare var saveAs: any; // https://github.com/eligrey/FileSaver.js
+
 (() => {
 
     var chameleon: Chameleon.Controls;
@@ -193,29 +195,7 @@ interface TextureItem {
             },
             exportObjTexture: () => {
                 if (chameleon) {
-                    var newWindow = window.open();
-
-                    var packedTexture = chameleon.packTexture();
-                    var aPng = newWindow.document.createElement('a');
-                    aPng.href = packedTexture.toDataURL();
-                    aPng.setAttribute('download', 'texture.png');
-                    newWindow.document.body.appendChild(aPng);
-                    setTimeout(() => {
-                        aPng.click();
-
-                        var objData = new THREE.OBJExporter().parse(chameleon.geometry);
-                        var objUrl = URL.createObjectURL(new Blob([objData], {type: 'text/plain'}));
-
-                        var aObj = newWindow.document.createElement('a');
-                        aObj.href = objUrl;
-                        aObj.setAttribute('download', 'model.obj');
-                        newWindow.document.body.appendChild(aObj);
-                        setTimeout(() => {
-                            aObj.click();
-                        }, 100);
-
-                    }, 100);
-
+                    saveAs(chameleon.packTexture(), 'texture-export.zip');
                 }
             }
         };

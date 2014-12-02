@@ -1122,6 +1122,8 @@ var Chameleon;
     })();
     Chameleon.TextureBrush = TextureBrush;
 })(Chameleon || (Chameleon = {}));
+/// <reference path="../jszip.d.ts" />
+/// <reference path="../three-objloaderexporter.d.ts" />
 /// <reference path="./common.ts" />
 /// <reference path="./camera-controls.ts" />
 /// <reference path="./texture-manager.ts" />
@@ -1338,8 +1340,13 @@ var Chameleon;
             this._textureManager.useViewingTexture();
         };
         Controls.prototype.packTexture = function () {
-            // TODO return a blob containing packed texture
-            return this._textureManager.usePackedTexture().packedTexture;
+            this._textureManager.usePackedTexture();
+            var zip = new JSZip();
+            var textureDataUrl = this._textureManager.packedTexture.toDataURL();
+            zip.file('texture.png', textureDataUrl.substr(textureDataUrl.indexOf(',') + 1), { base64: true });
+            var objData = new THREE.OBJExporter().parse(this.geometry);
+            zip.file('model.obj', objData);
+            return zip.generate({ type: 'blob' });
         };
         return Controls;
     })();
@@ -1528,24 +1535,7 @@ var Chameleon;
             },
             exportObjTexture: function () {
                 if (chameleon) {
-                    var newWindow = window.open();
-                    var packedTexture = chameleon.packTexture();
-                    var aPng = newWindow.document.createElement('a');
-                    aPng.href = packedTexture.toDataURL();
-                    aPng.setAttribute('download', 'texture.png');
-                    newWindow.document.body.appendChild(aPng);
-                    setTimeout(function () {
-                        aPng.click();
-                        var objData = new THREE.OBJExporter().parse(chameleon.geometry);
-                        var objUrl = URL.createObjectURL(new Blob([objData], { type: 'text/plain' }));
-                        var aObj = newWindow.document.createElement('a');
-                        aObj.href = objUrl;
-                        aObj.setAttribute('download', 'model.obj');
-                        newWindow.document.body.appendChild(aObj);
-                        setTimeout(function () {
-                            aObj.click();
-                        }, 100);
-                    }, 100);
+                    saveAs(chameleon.packTexture(), 'texture-export.zip');
                 }
             }
         };

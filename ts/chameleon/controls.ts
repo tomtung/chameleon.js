@@ -1,3 +1,5 @@
+/// <reference path="../jszip.d.ts" />
+/// <reference path="../three-objloaderexporter.d.ts" />
 /// <reference path="./common.ts" />
 /// <reference path="./camera-controls.ts" />
 /// <reference path="./texture-manager.ts" />
@@ -254,8 +256,17 @@ module Chameleon {
         }
 
         packTexture(): HTMLCanvasElement {
-            // TODO return a blob containing packed texture
-            return this._textureManager.usePackedTexture().packedTexture;
+            this._textureManager.usePackedTexture();
+
+            var zip = new JSZip();
+
+            var textureDataUrl = this._textureManager.packedTexture.toDataURL();
+            zip.file('texture.png', textureDataUrl.substr(textureDataUrl.indexOf(',') + 1), {base64: true});
+
+            var objData = new THREE.OBJExporter().parse(this.geometry);
+            zip.file('model.obj', objData);
+
+            return zip.generate({type: 'blob'});
         }
 
         constructor(geometry: THREE.Geometry, canvas?: HTMLCanvasElement) {
