@@ -67,8 +67,6 @@ module Chameleon {
         private _drawingTextureScene: THREE.Scene;
         private _drawingVertexUvs: THREE.Vector2[];
         private _affectedFaces: AffectedFacesRecorder;
-        private _prePos: THREE.Vector2 = new THREE.Vector2();
-        private _preIndex: number = 0;
         private _isFloodFillEmpty: Uint8Array;
         private _isFloodFill: Uint8Array;
         private _nAdjacentFaces: Uint8Array;
@@ -554,21 +552,7 @@ module Chameleon {
             return u >= 0 && v >= 0 && (u + v <= 1);
         }
 
-        private _intersect(v1: THREE.Vector2, v2: THREE.Vector2, v3: THREE.Vector2, v4: THREE.Vector2) {
-            var a = v1.x, b = v1.y, c = v2.x, d = v2.y,
-                p = v3.x, q = v3.y, r = v4.x, s = v4.y;
-            var det, gamma, lambda;
-            det = (c - a) * (s - q) - (r - p) * (d - b);
-            if (det === 0) {
-                return false;
-            } else {
-                lambda = ((s - q) * (r - a) + (p - r) * (s - b)) / det;
-                gamma = ((b - d) * (r - a) + (c - a) * (s - b)) / det;
-                return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
-            }
-        }
-
-        private _add_recursive(faceIndex: number, center: THREE.Vector2, radius: number, start: boolean, prePos: THREE.Vector2) {
+        private _add_recursive(faceIndex: number, center: THREE.Vector2, radius: number) {
             if (faceIndex >= 0 && !this._isFloodFill[faceIndex]) {
                 var v1 = new THREE.Vector2();
                 v1.copy(this._drawingTextureUvs[faceIndex][0]);
@@ -587,42 +571,7 @@ module Chameleon {
                 var collide2 = this._lineCircleCollide(v2, v3, center, radius);
                 var collide3 = this._lineCircleCollide(v3, v1, center, radius);
 
-                var insidepre = false;
-                var diff = new THREE.Vector2();
-                diff.set(center.y - prePos.y, -(center.x - prePos.x));
-                diff.normalize().multiplyScalar(radius);
-                var v5 = new THREE.Vector2();
-                var v6 = new THREE.Vector2();
-                var v7 = new THREE.Vector2();
-                var v8 = new THREE.Vector2();
-                v5.copy(prePos).add(diff);
-                v6.copy(prePos).sub(diff);
-                v7.copy(center).add(diff);
-                v8.copy(center).sub(diff);
-                if (this._pointInTriangle(v5, v1, v2, v3))
-                    insidepre = true;
-                if (this._pointInTriangle(v6, v1, v2, v3))
-                    insidepre = true;
-                if (this._pointInTriangle(v7, v1, v2, v3))
-                    insidepre = true;
-                if (this._pointInTriangle(v8, v1, v2, v3))
-                    insidepre = true;
-                if (this._pointInTriangle(v1, v5, v6, v7) || this._pointInTriangle(v1, v6, v7, v8))
-                    insidepre = true;
-                if (this._pointInTriangle(v2, v5, v6, v7) || this._pointInTriangle(v2, v6, v7, v8))
-                    insidepre = true;
-                if (this._pointInTriangle(v3, v5, v6, v7) || this._pointInTriangle(v3, v6, v7, v8))
-                    insidepre = true;
-                if (this._intersect(v5, v6, v1, v2) || this._intersect(v5, v6, v2, v3) || this._intersect(v5, v6, v3, v1))
-                    insidepre = true;
-                if (this._intersect(v5, v7, v1, v2) || this._intersect(v5, v7, v2, v3) || this._intersect(v5, v7, v3, v1))
-                    insidepre = true;
-                if (this._intersect(v6, v8, v1, v2) || this._intersect(v6, v8, v2, v3) || this._intersect(v6, v8, v3, v1))
-                    insidepre = true;
-                if (this._intersect(v7, v8, v1, v2) || this._intersect(v7, v8, v2, v3) || this._intersect(v7, v8, v3, v1))
-                    insidepre = true;
-
-                if (inside || collide1 || collide2 || collide3 || insidepre) {
+                if (inside || collide1 || collide2 || collide3) {
                     this._isFloodFill[faceIndex] = 1;
                     this._affectedFaces.add(faceIndex);
                     for (var i = 0; i < this._nAdjacentFaces[faceIndex]; i += 1) {
@@ -631,24 +580,20 @@ module Chameleon {
                         cameradirection.copy(this._camera.position);
                         cameradirection.normalize();
                         if (this.geometry.faces[newfaceIndex].normal.dot(cameradirection) > 0) {
-                            this._add_recursive(newfaceIndex, center, radius, start, prePos);
+                            this._add_recursive(newfaceIndex, center, radius);
                         }
                     }
                 }
             }
         }
 
-        public onStrokePainted(canvasPos: THREE.Vector2, radius: number, start: boolean): TextureManager {
+        public onStrokePainted(canvasPos: THREE.Vector2, radius: number): TextureManager {
             var intersections = this._castRayFromMouse(canvasPos);
             if (intersections.length > 0) {
                 this._drawingMaterial.map.needsUpdate = true;
                 var faceIndex = intersections[0].face.materialIndex;
                 this._isFloodFill.set(this._isFloodFillEmpty);
-                this._add_recursive(faceIndex, canvasPos, radius, start, this._prePos);
-                if (start == false)
-                    this._add_recursive(this._preIndex, canvasPos, radius, start, this._prePos);
-                this._prePos = canvasPos;
-                this._preIndex = faceIndex;
+                this._add_recursive(faceIndex, canvasPos, radius);
             }
 
             return this;

@@ -134,7 +134,7 @@ module Chameleon {
 
                 var pos = mousePositionInCanvas(event, this.canvasBox);
                 this.brush.startStroke(this._textureManager.drawingCanvas, pos);
-                this._textureManager.onStrokePainted(pos, this.brush.radius, true);
+                this._textureManager.onStrokePainted(pos, this.brush.radius);
             }
 
             document.addEventListener('mousemove', this._mousemove, false);
@@ -157,7 +157,7 @@ module Chameleon {
                 case ControlsState.Draw:
                     var pos = mousePositionInCanvas(event, this.canvasBox);
                     this.brush.continueStoke(pos);
-                    this._textureManager.onStrokePainted(pos, this.brush.radius, false);
+                    this._textureManager.onStrokePainted(pos, this.brush.radius);
                     break;
                 default:
                     debugger;

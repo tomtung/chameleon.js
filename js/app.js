@@ -265,8 +265,6 @@ var Chameleon;
         // Assumption on geometry: material indices are same to face indices.
         // This special treatment is implemented in the constructor of Controls
         function TextureManager(mesh, renderer, camera) {
-            this._prePos = new THREE.Vector2();
-            this._preIndex = 0;
             this._backgroundSinglePixelCanvas = document.createElement('canvas');
             this.backgroundColor = '#FFFFFF';
             this._mesh = mesh;
@@ -651,20 +649,7 @@ var Chameleon;
             var b = (dot00 * dot11 - dot01 * dot01), inv = b === 0 ? 0 : (1 / b), u = (dot11 * dot02 - dot01 * dot12) * inv, v = (dot00 * dot12 - dot01 * dot02) * inv;
             return u >= 0 && v >= 0 && (u + v <= 1);
         };
-        TextureManager.prototype._intersect = function (v1, v2, v3, v4) {
-            var a = v1.x, b = v1.y, c = v2.x, d = v2.y, p = v3.x, q = v3.y, r = v4.x, s = v4.y;
-            var det, gamma, lambda;
-            det = (c - a) * (s - q) - (r - p) * (d - b);
-            if (det === 0) {
-                return false;
-            }
-            else {
-                lambda = ((s - q) * (r - a) + (p - r) * (s - b)) / det;
-                gamma = ((b - d) * (r - a) + (c - a) * (s - b)) / det;
-                return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
-            }
-        };
-        TextureManager.prototype._add_recursive = function (faceIndex, center, radius, start, prePos) {
+        TextureManager.prototype._add_recursive = function (faceIndex, center, radius) {
             if (faceIndex >= 0 && !this._isFloodFill[faceIndex]) {
                 var v1 = new THREE.Vector2();
                 v1.copy(this._drawingTextureUvs[faceIndex][0]);
@@ -682,41 +667,7 @@ var Chameleon;
                 var collide1 = this._lineCircleCollide(v1, v2, center, radius);
                 var collide2 = this._lineCircleCollide(v2, v3, center, radius);
                 var collide3 = this._lineCircleCollide(v3, v1, center, radius);
-                var insidepre = false;
-                var diff = new THREE.Vector2();
-                diff.set(center.y - prePos.y, -(center.x - prePos.x));
-                diff.normalize().multiplyScalar(radius);
-                var v5 = new THREE.Vector2();
-                var v6 = new THREE.Vector2();
-                var v7 = new THREE.Vector2();
-                var v8 = new THREE.Vector2();
-                v5.copy(prePos).add(diff);
-                v6.copy(prePos).sub(diff);
-                v7.copy(center).add(diff);
-                v8.copy(center).sub(diff);
-                if (this._pointInTriangle(v5, v1, v2, v3))
-                    insidepre = true;
-                if (this._pointInTriangle(v6, v1, v2, v3))
-                    insidepre = true;
-                if (this._pointInTriangle(v7, v1, v2, v3))
-                    insidepre = true;
-                if (this._pointInTriangle(v8, v1, v2, v3))
-                    insidepre = true;
-                if (this._pointInTriangle(v1, v5, v6, v7) || this._pointInTriangle(v1, v6, v7, v8))
-                    insidepre = true;
-                if (this._pointInTriangle(v2, v5, v6, v7) || this._pointInTriangle(v2, v6, v7, v8))
-                    insidepre = true;
-                if (this._pointInTriangle(v3, v5, v6, v7) || this._pointInTriangle(v3, v6, v7, v8))
-                    insidepre = true;
-                if (this._intersect(v5, v6, v1, v2) || this._intersect(v5, v6, v2, v3) || this._intersect(v5, v6, v3, v1))
-                    insidepre = true;
-                if (this._intersect(v5, v7, v1, v2) || this._intersect(v5, v7, v2, v3) || this._intersect(v5, v7, v3, v1))
-                    insidepre = true;
-                if (this._intersect(v6, v8, v1, v2) || this._intersect(v6, v8, v2, v3) || this._intersect(v6, v8, v3, v1))
-                    insidepre = true;
-                if (this._intersect(v7, v8, v1, v2) || this._intersect(v7, v8, v2, v3) || this._intersect(v7, v8, v3, v1))
-                    insidepre = true;
-                if (inside || collide1 || collide2 || collide3 || insidepre) {
+                if (inside || collide1 || collide2 || collide3) {
                     this._isFloodFill[faceIndex] = 1;
                     this._affectedFaces.add(faceIndex);
                     for (var i = 0; i < this._nAdjacentFaces[faceIndex]; i += 1) {
@@ -725,23 +676,19 @@ var Chameleon;
                         cameradirection.copy(this._camera.position);
                         cameradirection.normalize();
                         if (this.geometry.faces[newfaceIndex].normal.dot(cameradirection) > 0) {
-                            this._add_recursive(newfaceIndex, center, radius, start, prePos);
+                            this._add_recursive(newfaceIndex, center, radius);
                         }
                     }
                 }
             }
         };
-        TextureManager.prototype.onStrokePainted = function (canvasPos, radius, start) {
+        TextureManager.prototype.onStrokePainted = function (canvasPos, radius) {
             var intersections = this._castRayFromMouse(canvasPos);
             if (intersections.length > 0) {
                 this._drawingMaterial.map.needsUpdate = true;
                 var faceIndex = intersections[0].face.materialIndex;
                 this._isFloodFill.set(this._isFloodFillEmpty);
-                this._add_recursive(faceIndex, canvasPos, radius, start, this._prePos);
-                if (start == false)
-                    this._add_recursive(this._preIndex, canvasPos, radius, start, this._prePos);
-                this._prePos = canvasPos;
-                this._preIndex = faceIndex;
+                this._add_recursive(faceIndex, canvasPos, radius);
             }
             return this;
         };
@@ -1237,7 +1184,7 @@ var Chameleon;
                     _this._textureManager.useDrawingTexture();
                     var pos = Chameleon.mousePositionInCanvas(event, _this.canvasBox);
                     _this.brush.startStroke(_this._textureManager.drawingCanvas, pos);
-                    _this._textureManager.onStrokePainted(pos, _this.brush.radius, true);
+                    _this._textureManager.onStrokePainted(pos, _this.brush.radius);
                 }
                 document.addEventListener('mousemove', _this._mousemove, false);
                 document.addEventListener('mouseup', _this._mouseup, false);
@@ -1256,7 +1203,7 @@ var Chameleon;
                     case 1 /* Draw */:
                         var pos = Chameleon.mousePositionInCanvas(event, _this.canvasBox);
                         _this.brush.continueStoke(pos);
-                        _this._textureManager.onStrokePainted(pos, _this.brush.radius, false);
+                        _this._textureManager.onStrokePainted(pos, _this.brush.radius);
                         break;
                     default:
                         debugger;
