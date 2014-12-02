@@ -252,20 +252,27 @@ var Chameleon;
         };
         return AffectedFacesRecorder;
     })();
+    (function (TextureInUse) {
+        TextureInUse[TextureInUse["Viewing"] = 0] = "Viewing";
+        TextureInUse[TextureInUse["Drawing"] = 1] = "Drawing";
+        TextureInUse[TextureInUse["Packed"] = 2] = "Packed";
+    })(Chameleon.TextureInUse || (Chameleon.TextureInUse = {}));
+    var TextureInUse = Chameleon.TextureInUse;
     /**
-     * Manages both the viewing texture and the drawing texture
+     * Manages the drawing, viewing, and packed textures
      */
     var TextureManager = (function () {
         // Assumption on geometry: material indices are same to face indices.
         // This special treatment is implemented in the constructor of Controls
-        function TextureManager(geometry, renderer, camera) {
-            this.geometry = geometry;
-            this.renderer = renderer;
-            this.camera = camera;
+        function TextureManager(mesh, renderer, camera) {
             this._backgroundSinglePixelCanvas = document.createElement('canvas');
             this.backgroundColor = '#FFFFFF';
+            this._mesh = mesh;
+            this._renderer = renderer;
+            this._camera = camera;
             this._affectedFaces = new AffectedFacesRecorder(this.geometry.faces.length);
-            this.initializeViewingTexture().initializePackedTexture().initializeDrawingTexture();
+            this._initializeViewingTexture()._initializePackedTexture()._initializeDrawingTexture()._applyViewingTexture();
+            this._textureInUse = 0 /* Viewing */;
             this._isFloodFillEmpty = new Uint8Array(this.geometry.faces.length);
             this._isFloodFill = new Uint8Array(this.geometry.faces.length);
             this._nAdjacentFaces = new Uint8Array(this.geometry.faces.length);
@@ -306,7 +313,46 @@ var Chameleon;
             enumerable: true,
             configurable: true
         });
+        Object.defineProperty(TextureManager.prototype, "geometry", {
+            get: function () {
+                return this._mesh.geometry;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(TextureManager.prototype, "packedTexture", {
+            get: function () {
+                return this._packedTextureCanvas;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        TextureManager.prototype.useViewingTexture = function () {
+            if (this._textureInUse !== 0 /* Viewing */) {
+                if (this._textureInUse === 1 /* Drawing */) {
+                    this._updateViewingFromDrawingTexture();
+                }
+                this._applyViewingTexture();
+                this._textureInUse = 0 /* Viewing */;
+            }
+            return this;
+        };
+        TextureManager.prototype.useDrawingTexture = function () {
+            if (this._textureInUse !== 1 /* Drawing */) {
+                this.useViewingTexture()._generateDrawingFromViewingTexture()._applyDrawingTexture();
+                this._textureInUse = 1 /* Drawing */;
+            }
+            return this;
+        };
+        TextureManager.prototype.usePackedTexture = function () {
+            if (this._textureInUse !== 2 /* Packed */) {
+                this.useViewingTexture()._generatePackedFromViewingTexture()._applyPackedTexture();
+                this._textureInUse = 2 /* Packed */;
+            }
+            return this;
+        };
         TextureManager.prototype.backgroundReset = function () {
+            this.useViewingTexture();
             var context = this._backgroundSinglePixelCanvas.getContext('2d');
             context.beginPath();
             context.fillStyle = this.backgroundColor;
@@ -320,7 +366,7 @@ var Chameleon;
                 }
             }
         };
-        TextureManager.prototype.initializeViewingTexture = function () {
+        TextureManager.prototype._initializeViewingTexture = function () {
             this._backgroundSinglePixelCanvas.width = this._backgroundSinglePixelCanvas.height = 1;
             var context = this._backgroundSinglePixelCanvas.getContext('2d');
             context.beginPath();
@@ -348,7 +394,7 @@ var Chameleon;
             return this;
         };
         // Depends on the initialization of viewing texture
-        TextureManager.prototype.initializeDrawingTexture = function () {
+        TextureManager.prototype._initializeDrawingTexture = function () {
             this._drawingVertexUvs = [];
             for (var i = 0; i < this.geometry.vertices.length; i += 1) {
                 this._drawingVertexUvs.push(new THREE.Vector2());
@@ -373,7 +419,23 @@ var Chameleon;
             this._drawingTextureScene.add(this._drawingTextureMesh);
             return this;
         };
-        TextureManager.prototype.prepareViewingTexture = function () {
+        TextureManager.prototype._initializePackedTexture = function () {
+            this._packedTextureUvs = [];
+            var faces = this.geometry.faces;
+            for (var i = 0; i < faces.length; i += 1) {
+                this._packedTextureUvs.push([
+                    new THREE.Vector2(0.5, 0.5),
+                    new THREE.Vector2(0.5, 0.5),
+                    new THREE.Vector2(0.5, 0.5)
+                ]);
+            }
+            this._packedTextureCanvas = document.createElement('canvas');
+            this._packedTextureMaterial = new THREE.MeshLambertMaterial({
+                map: new THREE.Texture(this._packedTextureCanvas)
+            });
+            return this;
+        };
+        TextureManager.prototype._updateViewingFromDrawingTexture = function () {
             var _this = this;
             if (this._affectedFaces.length > 0) {
                 var uMax = Number.NEGATIVE_INFINITY, uMin = Number.POSITIVE_INFINITY, vMax = Number.NEGATIVE_INFINITY, vMin = Number.POSITIVE_INFINITY;
@@ -406,35 +468,13 @@ var Chameleon;
             }
             return this;
         };
-        TextureManager.prototype.applyViewingTexture = function (mesh) {
-            mesh.material = this._viewingMaterial;
-            mesh.geometry.faceVertexUvs[0] = this._viewingTextureUvs;
-            mesh.geometry.uvsNeedUpdate = true;
+        TextureManager.prototype._applyViewingTexture = function () {
+            this._mesh.material = this._viewingMaterial;
+            this._mesh.geometry.faceVertexUvs[0] = this._viewingTextureUvs;
+            this._mesh.geometry.uvsNeedUpdate = true;
             return this;
         };
-        TextureManager.prototype.initializePackedTexture = function () {
-            this._packedTextureUvs = [];
-            var faces = this.geometry.faces;
-            for (var i = 0; i < faces.length; i += 1) {
-                this._packedTextureUvs.push([
-                    new THREE.Vector2(0.5, 0.5),
-                    new THREE.Vector2(0.5, 0.5),
-                    new THREE.Vector2(0.5, 0.5)
-                ]);
-            }
-            this._packedTextureCanvas = document.createElement('canvas');
-            this._packedTextureMaterial = new THREE.MeshLambertMaterial({
-                map: new THREE.Texture(this._packedTextureCanvas)
-            });
-            return this;
-        };
-        TextureManager.prototype.applyPackedTexture = function (mesh) {
-            mesh.material = this._packedTextureMaterial;
-            mesh.geometry.faceVertexUvs[0] = this._packedTextureUvs;
-            mesh.geometry.uvsNeedUpdate = true;
-            return this;
-        };
-        TextureManager.prototype.preparePackingTexture = function () {
+        TextureManager.prototype._generatePackedFromViewingTexture = function () {
             var patches = [];
             for (var faceIndex = 0; faceIndex < this.geometry.faces.length; faceIndex += 1) {
                 var faceCanvas = this._viewingMaterial.materials[faceIndex].map.image;
@@ -522,24 +562,30 @@ var Chameleon;
             this.geometry.uvsNeedUpdate = true;
             return this;
         };
-        TextureManager.prototype.prepareDrawingTexture = function () {
-            // Assumption: when renderer is created, 'alpha' must be set to true
-            var originalClearAlpha = this.renderer.getClearAlpha();
-            var originalClearColor = this.renderer.getClearColor().clone();
-            this.renderer.setClearColor(0, 0);
-            this.applyViewingTexture(this._drawingTextureMesh);
-            this.renderer.render(this._drawingTextureScene, this.camera);
-            this._drawingCanvas.width = this.renderer.domElement.width;
-            this._drawingCanvas.height = this.renderer.domElement.height;
-            this.drawingContext.drawImage(this.renderer.domElement, -2, 0);
-            this.drawingContext.drawImage(this.renderer.domElement, 2, 0);
-            this.drawingContext.drawImage(this.renderer.domElement, 0, -2);
-            this.drawingContext.drawImage(this.renderer.domElement, 0, 2);
-            this.drawingContext.drawImage(this.renderer.domElement, 0, 0);
+        TextureManager.prototype._applyPackedTexture = function () {
+            this._mesh.material = this._packedTextureMaterial;
+            this._mesh.geometry.faceVertexUvs[0] = this._packedTextureUvs;
+            this._mesh.geometry.uvsNeedUpdate = true;
+            return this;
+        };
+        TextureManager.prototype._generateDrawingFromViewingTexture = function () {
+            console.assert(this._textureInUse === 0 /* Viewing */);
+            // Assumption: when _renderer is created, 'alpha' must be set to true
+            var originalClearAlpha = this._renderer.getClearAlpha();
+            var originalClearColor = this._renderer.getClearColor().clone();
+            this._renderer.setClearColor(0, 0);
+            this._renderer.render(this._drawingTextureScene, this._camera);
+            this._drawingCanvas.width = this._renderer.domElement.width;
+            this._drawingCanvas.height = this._renderer.domElement.height;
+            this.drawingContext.drawImage(this._renderer.domElement, -2, 0);
+            this.drawingContext.drawImage(this._renderer.domElement, 2, 0);
+            this.drawingContext.drawImage(this._renderer.domElement, 0, -2);
+            this.drawingContext.drawImage(this._renderer.domElement, 0, 2);
+            this.drawingContext.drawImage(this._renderer.domElement, 0, 0);
             this._drawingMaterial.map.needsUpdate = true;
             var projectedPosition = new THREE.Vector3();
             for (var i = 0; i < this.geometry.vertices.length; i += 1) {
-                projectedPosition.copy(this.geometry.vertices[i]).project(this.camera);
+                projectedPosition.copy(this.geometry.vertices[i]).project(this._camera);
                 this._drawingVertexUvs[i].setX((projectedPosition.x + 1) / 2).setY((projectedPosition.y + 1) / 2);
             }
             for (var i = 0; i < this.geometry.faces.length; i += 1) {
@@ -547,20 +593,20 @@ var Chameleon;
                 this._drawingTextureUvs[i][1].copy(this._drawingVertexUvs[this.geometry.faces[i].b]);
                 this._drawingTextureUvs[i][2].copy(this._drawingVertexUvs[this.geometry.faces[i].c]);
             }
-            this.renderer.setClearColor(originalClearColor, originalClearAlpha);
+            this._renderer.setClearColor(originalClearColor, originalClearAlpha);
             return this;
         };
-        TextureManager.prototype.applyDrawingTexture = function (mesh) {
-            mesh.material = this._drawingMaterial;
-            mesh.geometry.faceVertexUvs[0] = this._drawingTextureUvs;
-            mesh.geometry.uvsNeedUpdate = true;
+        TextureManager.prototype._applyDrawingTexture = function () {
+            this._mesh.material = this._drawingMaterial;
+            this._mesh.geometry.faceVertexUvs[0] = this._drawingTextureUvs;
+            this._mesh.geometry.uvsNeedUpdate = true;
             return this;
         };
         TextureManager.prototype._castRayFromMouse = function (canvasPos) {
             var mouse3d = new THREE.Vector3(canvasPos.x / this._drawingCanvas.width * 2 - 1, -canvasPos.y / this._drawingCanvas.height * 2 + 1, -1.0);
             var direction = new THREE.Vector3(mouse3d.x, mouse3d.y, 1.0);
-            mouse3d.unproject(this.camera);
-            direction.unproject(this.camera).sub(mouse3d).normalize();
+            mouse3d.unproject(this._camera);
+            direction.unproject(this._camera).sub(mouse3d).normalize();
             return new THREE.Raycaster(mouse3d, direction).intersectObject(this._drawingTextureMesh);
         };
         TextureManager.prototype._pointCircleCollide = function (point, circle, r) {
@@ -625,7 +671,7 @@ var Chameleon;
                     for (var i = 0; i < this._nAdjacentFaces[faceIndex]; i += 1) {
                         var newfaceIndex = this._AdjacentFacesList[faceIndex][i];
                         var cameradirection = new THREE.Vector3();
-                        cameradirection.copy(this.camera.position);
+                        cameradirection.copy(this._camera.position);
                         cameradirection.normalize();
                         if (this.geometry.faces[newfaceIndex].normal.dot(cameradirection) > 0) {
                             this._add_recursive(newfaceIndex, center, radius);
@@ -1125,13 +1171,13 @@ var Chameleon;
                 // Hold shift key to rotate and pan
                 if (_this.perspectiveView || event.shiftKey) {
                     _this._state = 2 /* View */;
-                    _this._useViewingTexture();
+                    _this._textureManager.useViewingTexture();
                     _this._perspectiveCameraControls.onMouseDown(event);
                     _this._orthographicCameraControls.onMouseDown(event);
                 }
                 else {
                     _this._state = 1 /* Draw */;
-                    _this._useDrawingTexture();
+                    _this._textureManager.useDrawingTexture();
                     var pos = Chameleon.mousePositionInCanvas(event, _this.canvasBox);
                     _this.brush.startStroke(_this._textureManager.drawingCanvas, pos);
                     _this._textureManager.onStrokePainted(pos, _this.brush.radius);
@@ -1176,7 +1222,7 @@ var Chameleon;
                 if (_this._state === 1 /* Draw */ || !_this.perspectiveView && !event.shiftKey) {
                     return;
                 }
-                _this._useViewingTexture();
+                _this._textureManager.useViewingTexture();
                 _this._perspectiveCameraControls.onMouseWheel(event);
                 _this._orthographicCameraControls.onMouseWheel(event);
             };
@@ -1193,9 +1239,7 @@ var Chameleon;
             this.canvas.addEventListener('mousewheel', this._mousewheel, false);
             this.canvas.addEventListener('DOMMouseScroll', this._mousewheel, false); // firefox
             this._initializeCamera();
-            this._textureManager = new Chameleon.TextureManager(this.geometry, this._renderer, this._orthographicCamera);
-            this._textureManager.applyViewingTexture(this._mesh);
-            this._usingViewingTexture = true;
+            this._textureManager = new Chameleon.TextureManager(this._mesh, this._renderer, this._orthographicCamera);
             this.handleResize();
             this.update();
         }
@@ -1217,7 +1261,7 @@ var Chameleon;
                 }
                 this._perspectiveView = value;
                 if (value) {
-                    this._useViewingTexture();
+                    this._textureManager.useViewingTexture();
                 }
             },
             enumerable: true,
@@ -1228,7 +1272,6 @@ var Chameleon;
                 return this._textureManager.backgroundColor;
             },
             set: function (value) {
-                this._useViewingTexture();
                 this._textureManager.backgroundColor = value;
                 this._textureManager.backgroundReset();
             },
@@ -1240,7 +1283,7 @@ var Chameleon;
             this.updateCanvasBox();
             this._orthographicCameraControls.handleResize();
             this._perspectiveCameraControls.handleResize();
-            this._useViewingTexture();
+            this._textureManager.useViewingTexture();
         };
         Controls.prototype.update = function () {
             this._perspectiveCameraControls.updateCamera();
@@ -1254,22 +1297,6 @@ var Chameleon;
                 this._renderer.render(this._scene, this._orthographicCamera);
             }
             this.canvas.getContext('2d').drawImage(this._renderer.domElement, 0, 0);
-        };
-        Controls.prototype._useViewingTexture = function () {
-            // If already using the viewing texture, do nothing
-            if (this._usingViewingTexture) {
-                return;
-            }
-            this._textureManager.prepareViewingTexture().applyViewingTexture(this._mesh);
-            this._usingViewingTexture = true;
-        };
-        Controls.prototype._useDrawingTexture = function () {
-            // If already using the drawing texture, do nothing
-            if (!this._usingViewingTexture) {
-                return;
-            }
-            this._textureManager.prepareDrawingTexture().applyDrawingTexture(this._mesh);
-            this._usingViewingTexture = false;
         };
         Controls._computeBoundingBallRadius = function (geometry) {
             var radius = 0;
@@ -1308,14 +1335,11 @@ var Chameleon;
             this._perspectiveCamera.updateProjectionMatrix();
             this._orthographicCameraControls.handleResize();
             this._perspectiveCameraControls.handleResize();
-            this._useViewingTexture();
+            this._textureManager.useViewingTexture();
         };
         Controls.prototype.packTexture = function () {
-            this._useViewingTexture();
-            this._textureManager.preparePackingTexture().applyPackedTexture(this._mesh);
-            var objData = new THREE.OBJExporter().parse(this.geometry);
-            console.log(objData);
-            return this._textureManager._packedTextureCanvas;
+            // TODO return a blob containing packed texture
+            return this._textureManager.usePackedTexture().packedTexture;
         };
         return Controls;
     })();

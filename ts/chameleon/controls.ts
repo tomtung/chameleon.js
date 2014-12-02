@@ -45,7 +45,7 @@ module Chameleon {
 
             this._perspectiveView = value;
             if (value) {
-                this._useViewingTexture();
+                this._textureManager.useViewingTexture();
             }
         }
 
@@ -54,7 +54,6 @@ module Chameleon {
         }
 
         set backgroundColor(value: string) {
-            this._useViewingTexture();
             this._textureManager.backgroundColor = value;
             this._textureManager.backgroundReset();
         }
@@ -90,16 +89,14 @@ module Chameleon {
 
 
         private _textureManager: TextureManager;
-        private _usingViewingTexture: boolean;
 
         handleResize() {
             this._renderer.setSize(this.canvas.width, this.canvas.height);
             this.updateCanvasBox();
             this._orthographicCameraControls.handleResize();
             this._perspectiveCameraControls.handleResize();
-            this._useViewingTexture();
+            this._textureManager.useViewingTexture();
         }
-
 
         update() {
             this._perspectiveCameraControls.updateCamera();
@@ -115,26 +112,6 @@ module Chameleon {
             this.canvas.getContext('2d').drawImage(this._renderer.domElement, 0, 0);
         }
 
-        private _useViewingTexture() {
-            // If already using the viewing texture, do nothing
-            if (this._usingViewingTexture) {
-                return;
-            }
-
-            this._textureManager.prepareViewingTexture().applyViewingTexture(this._mesh);
-            this._usingViewingTexture = true;
-        }
-
-        private _useDrawingTexture() {
-            // If already using the drawing texture, do nothing
-            if (!this._usingViewingTexture) {
-                return;
-            }
-
-            this._textureManager.prepareDrawingTexture().applyDrawingTexture(this._mesh);
-            this._usingViewingTexture = false;
-        }
-
         private _mousedown = (event: MouseEvent) => {
             event.preventDefault();
             event.stopPropagation();
@@ -146,12 +123,12 @@ module Chameleon {
             // Hold shift key to rotate and pan
             if (this.perspectiveView || event.shiftKey) {
                 this._state = ControlsState.View;
-                this._useViewingTexture();
+                this._textureManager.useViewingTexture();
                 this._perspectiveCameraControls.onMouseDown(event);
                 this._orthographicCameraControls.onMouseDown(event);
             } else {
                 this._state = ControlsState.Draw;
-                this._useDrawingTexture();
+                this._textureManager.useDrawingTexture();
 
                 var pos = mousePositionInCanvas(event, this.canvasBox);
                 this.brush.startStroke(this._textureManager.drawingCanvas, pos);
@@ -207,7 +184,7 @@ module Chameleon {
                 return;
             }
 
-            this._useViewingTexture();
+            this._textureManager.useViewingTexture();
             this._perspectiveCameraControls.onMouseWheel(event);
             this._orthographicCameraControls.onMouseWheel(event);
         };
@@ -273,15 +250,12 @@ module Chameleon {
             this._orthographicCameraControls.handleResize();
             this._perspectiveCameraControls.handleResize();
 
-            this._useViewingTexture();
+            this._textureManager.useViewingTexture();
         }
 
         packTexture(): HTMLCanvasElement {
-            this._useViewingTexture();
-            this._textureManager.preparePackingTexture().applyPackedTexture(this._mesh);
-            var objData = new THREE.OBJExporter().parse(this.geometry);
-            console.log(objData);
-            return this._textureManager._packedTextureCanvas;
+            // TODO return a blob containing packed texture
+            return this._textureManager.usePackedTexture().packedTexture;
         }
 
         constructor(geometry: THREE.Geometry, canvas?: HTMLCanvasElement) {
@@ -301,9 +275,7 @@ module Chameleon {
 
             this._initializeCamera();
 
-            this._textureManager = new TextureManager(this.geometry, this._renderer, this._orthographicCamera);
-            this._textureManager.applyViewingTexture(this._mesh);
-            this._usingViewingTexture = true;
+            this._textureManager = new TextureManager(this._mesh, this._renderer, this._orthographicCamera);
 
             this.handleResize();
             this.update();

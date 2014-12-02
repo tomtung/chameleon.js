@@ -42,14 +42,22 @@ module Chameleon {
         }
     }
 
+    export enum TextureInUse {
+        Viewing, Drawing, Packed
+    }
+
     /**
-     * Manages both the viewing texture and the drawing texture
+     * Manages the drawing, viewing, and packed textures
      */
     export class TextureManager {
+        private _textureInUse: TextureInUse;
+        private _mesh: THREE.Mesh;
+        private _renderer: THREE.WebGLRenderer;
+        private _camera: THREE.OrthographicCamera;
         private _viewingTextureUvs: THREE.Vector2[][];
         private _viewingMaterial: THREE.MeshFaceMaterial;
         private _packedTextureUvs: THREE.Vector2[][];
-        _packedTextureCanvas: HTMLCanvasElement;
+        private _packedTextureCanvas: HTMLCanvasElement;
         private _packedTextureMaterial: THREE.MeshLambertMaterial;
         private _drawingTextureUvs: THREE.Vector2[][];
         private _drawingCanvas: HTMLCanvasElement;
@@ -73,7 +81,48 @@ module Chameleon {
             return this._drawingCanvas;
         }
 
+        get geometry() {
+            return this._mesh.geometry;
+        }
+
+        get packedTexture() {
+            return this._packedTextureCanvas;
+        }
+
+        useViewingTexture(): TextureManager {
+            if (this._textureInUse !== TextureInUse.Viewing) {
+                if (this._textureInUse === TextureInUse.Drawing) {
+                    this._updateViewingFromDrawingTexture();
+                }
+
+                this._applyViewingTexture();
+                this._textureInUse = TextureInUse.Viewing;
+            }
+
+            return this;
+        }
+
+        useDrawingTexture(): TextureManager {
+            if (this._textureInUse !== TextureInUse.Drawing) {
+                this.useViewingTexture()._generateDrawingFromViewingTexture()._applyDrawingTexture();
+                this._textureInUse = TextureInUse.Drawing;
+            }
+
+            return this;
+        }
+
+        usePackedTexture(): TextureManager {
+            if (this._textureInUse !== TextureInUse.Packed) {
+                this.useViewingTexture()._generatePackedFromViewingTexture()._applyPackedTexture();
+                this._textureInUse = TextureInUse.Packed;
+            }
+
+            return this;
+        }
+
         backgroundReset() {
+            this.useViewingTexture();
+
             var context = this._backgroundSinglePixelCanvas.getContext('2d');
             context.beginPath();
             context.fillStyle = this.backgroundColor;
@@ -89,7 +138,7 @@ module Chameleon {
             }
         }
 
-        initializeViewingTexture(): TextureManager {
+        private _initializeViewingTexture(): TextureManager {
             this._backgroundSinglePixelCanvas.width = this._backgroundSinglePixelCanvas.height = 1;
             var context = this._backgroundSinglePixelCanvas.getContext('2d');
             context.beginPath();
@@ -121,7 +170,7 @@ module Chameleon {
         }
 
         // Depends on the initialization of viewing texture
-        initializeDrawingTexture(): TextureManager {
+        private _initializeDrawingTexture(): TextureManager {
             this._drawingVertexUvs = [];
             for (var i = 0; i < this.geometry.vertices.length; i += 1) {
                 this._drawingVertexUvs.push(new THREE.Vector2());
@@ -151,7 +200,26 @@ module Chameleon {
             return this;
         }
 
-        prepareViewingTexture(): TextureManager {
+        private _initializePackedTexture(): TextureManager {
+            this._packedTextureUvs = [];
+            var faces = this.geometry.faces;
+            for (var i = 0; i < faces.length; i += 1) {
+                this._packedTextureUvs.push([
+                    new THREE.Vector2(0.5, 0.5),
+                    new THREE.Vector2(0.5, 0.5),
+                    new THREE.Vector2(0.5, 0.5)
+                ]);
+            }
+
+            this._packedTextureCanvas = document.createElement('canvas');
+            this._packedTextureMaterial = new THREE.MeshLambertMaterial({
+                map: new THREE.Texture(this._packedTextureCanvas)
+            });
+
+            return this;
+        }
+
+        private _updateViewingFromDrawingTexture(): TextureManager {
             if (this._affectedFaces.length > 0) {
                 var uMax = Number.NEGATIVE_INFINITY,
                     uMin = Number.POSITIVE_INFINITY,
@@ -205,42 +273,15 @@ module Chameleon {
             return this;
         }
 
-        applyViewingTexture(mesh: THREE.Mesh): TextureManager {
-            mesh.material = this._viewingMaterial;
-            mesh.geometry.faceVertexUvs[0] = this._viewingTextureUvs;
-            mesh.geometry.uvsNeedUpdate = true;
+        private _applyViewingTexture(): TextureManager {
+            this._mesh.material = this._viewingMaterial;
+            this._mesh.geometry.faceVertexUvs[0] = this._viewingTextureUvs;
+            this._mesh.geometry.uvsNeedUpdate = true;
 
             return this;
         }
 
-        initializePackedTexture(): TextureManager {
-            this._packedTextureUvs = [];
-            var faces = this.geometry.faces;
-            for (var i = 0; i < faces.length; i += 1) {
-                this._packedTextureUvs.push([
-                    new THREE.Vector2(0.5, 0.5),
-                    new THREE.Vector2(0.5, 0.5),
-                    new THREE.Vector2(0.5, 0.5)
-                ]);
-            }
-
-            this._packedTextureCanvas = document.createElement('canvas');
-            this._packedTextureMaterial = new THREE.MeshLambertMaterial({
-                map: new THREE.Texture(this._packedTextureCanvas)
-            });
-
-            return this;
-        }
-
-        applyPackedTexture(mesh: THREE.Mesh): TextureManager {
-            mesh.material = this._packedTextureMaterial;
-            mesh.geometry.faceVertexUvs[0] = this._packedTextureUvs;
-            mesh.geometry.uvsNeedUpdate = true;
-
-            return this;
-        }
-
-        preparePackingTexture(): TextureManager {
+        private _generatePackedFromViewingTexture(): TextureManager {
             var patches: {canvas: HTMLCanvasElement; isRotated: boolean; faceIndices: number[]}[] = [];
 
             // Collect all unique texture patches to be packed
@@ -373,28 +414,37 @@ module Chameleon {
             return this;
         }
 
-        prepareDrawingTexture(): TextureManager {
-            // Assumption: when renderer is created, 'alpha' must be set to true
-            var originalClearAlpha = this.renderer.getClearAlpha();
-            var originalClearColor = this.renderer.getClearColor().clone();
-            this.renderer.setClearColor(0, 0);
+        private _applyPackedTexture(): TextureManager {
+            this._mesh.material = this._packedTextureMaterial;
+            this._mesh.geometry.faceVertexUvs[0] = this._packedTextureUvs;
+            this._mesh.geometry.uvsNeedUpdate = true;
 
-            this.applyViewingTexture(this._drawingTextureMesh);
-            this.renderer.render(this._drawingTextureScene, this.camera);
-            this._drawingCanvas.width = this.renderer.domElement.width;
-            this._drawingCanvas.height = this.renderer.domElement.height;
+            return this;
+        }
 
-            this.drawingContext.drawImage(this.renderer.domElement, -2, 0);
-            this.drawingContext.drawImage(this.renderer.domElement, 2, 0);
-            this.drawingContext.drawImage(this.renderer.domElement, 0, -2);
-            this.drawingContext.drawImage(this.renderer.domElement, 0, 2);
-            this.drawingContext.drawImage(this.renderer.domElement, 0, 0);
+        private _generateDrawingFromViewingTexture(): TextureManager {
+            console.assert(this._textureInUse === TextureInUse.Viewing);
+
+            // Assumption: when _renderer is created, 'alpha' must be set to true
+            var originalClearAlpha = this._renderer.getClearAlpha();
+            var originalClearColor = this._renderer.getClearColor().clone();
+            this._renderer.setClearColor(0, 0);
+
+            this._renderer.render(this._drawingTextureScene, this._camera);
+            this._drawingCanvas.width = this._renderer.domElement.width;
+            this._drawingCanvas.height = this._renderer.domElement.height;
+
+            this.drawingContext.drawImage(this._renderer.domElement, -2, 0);
+            this.drawingContext.drawImage(this._renderer.domElement, 2, 0);
+            this.drawingContext.drawImage(this._renderer.domElement, 0, -2);
+            this.drawingContext.drawImage(this._renderer.domElement, 0, 2);
+            this.drawingContext.drawImage(this._renderer.domElement, 0, 0);
 
             this._drawingMaterial.map.needsUpdate = true;
 
             var projectedPosition = new THREE.Vector3();
             for (var i = 0; i < this.geometry.vertices.length; i += 1) {
-                projectedPosition.copy(this.geometry.vertices[i]).project(this.camera);
+                projectedPosition.copy(this.geometry.vertices[i]).project(this._camera);
                 this._drawingVertexUvs[i].setX(
                     (projectedPosition.x + 1) / 2
                 ).setY(
@@ -407,14 +457,14 @@ module Chameleon {
                 this._drawingTextureUvs[i][2].copy(this._drawingVertexUvs[this.geometry.faces[i].c]);
             }
 
-            this.renderer.setClearColor(originalClearColor, originalClearAlpha);
+            this._renderer.setClearColor(originalClearColor, originalClearAlpha);
             return this;
         }
 
-        applyDrawingTexture(mesh: THREE.Mesh): TextureManager {
-            mesh.material = this._drawingMaterial;
-            mesh.geometry.faceVertexUvs[0] = this._drawingTextureUvs;
-            mesh.geometry.uvsNeedUpdate = true;
+        private _applyDrawingTexture(): TextureManager {
+            this._mesh.material = this._drawingMaterial;
+            this._mesh.geometry.faceVertexUvs[0] = this._drawingTextureUvs;
+            this._mesh.geometry.uvsNeedUpdate = true;
 
             return this;
         }
@@ -427,8 +477,8 @@ module Chameleon {
             );
             var direction = new THREE.Vector3(mouse3d.x, mouse3d.y, 1.0);
 
-            mouse3d.unproject(this.camera);
-            direction.unproject(this.camera).sub(mouse3d).normalize();
+            mouse3d.unproject(this._camera);
+            direction.unproject(this._camera).sub(mouse3d).normalize();
 
             return new THREE.Raycaster(
                 mouse3d,
@@ -519,7 +569,7 @@ module Chameleon {
                     for (var i = 0; i < this._nAdjacentFaces[faceIndex]; i += 1) {
                         var newfaceIndex = this._AdjacentFacesList[faceIndex][i];
                         var cameradirection = new THREE.Vector3();
-                        cameradirection.copy(this.camera.position);
+                        cameradirection.copy(this._camera.position);
                         cameradirection.normalize();
                         if (this.geometry.faces[newfaceIndex].normal.dot(cameradirection) > 0) {
                             this._add_recursive(newfaceIndex, center, radius);
@@ -543,12 +593,20 @@ module Chameleon {
 
         // Assumption on geometry: material indices are same to face indices.
         // This special treatment is implemented in the constructor of Controls
-        constructor(public geometry: THREE.Geometry,
-                    public renderer: THREE.WebGLRenderer,
-                    public camera: THREE.OrthographicCamera) {
+        constructor(mesh: THREE.Mesh,
+                    renderer: THREE.WebGLRenderer,
+                    camera: THREE.OrthographicCamera) {
+            this._mesh = mesh;
+            this._renderer = renderer;
+            this._camera = camera;
 
             this._affectedFaces = new AffectedFacesRecorder(this.geometry.faces.length);
-            this.initializeViewingTexture().initializePackedTexture().initializeDrawingTexture();
+
+            this._initializeViewingTexture().
+                _initializePackedTexture().
+                _initializeDrawingTexture().
+                _applyViewingTexture();
+            this._textureInUse = TextureInUse.Viewing;
 
             this._isFloodFillEmpty = new Uint8Array(this.geometry.faces.length);
             this._isFloodFill = new Uint8Array(this.geometry.faces.length);
