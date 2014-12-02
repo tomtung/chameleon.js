@@ -136,10 +136,10 @@ var Chameleon;
             this.onMouseWheel = function (event) {
                 var delta = 0;
                 if (event.wheelDelta) {
-                    delta = event.wheelDelta / 40;
+                    delta = -event.wheelDelta / 40;
                 }
                 else if (event.detail) {
-                    delta = -event.detail / 3;
+                    delta = event.detail / 3;
                 }
                 _this._zoomStart += delta * 0.01;
             };

@@ -167,9 +167,9 @@ module Chameleon {
             var delta = 0;
 
             if (event.wheelDelta) { // WebKit / Opera / Explorer 9
-                delta = event.wheelDelta / 40;
+                delta = -event.wheelDelta / 40;
             } else if (event.detail) { // Firefox
-                delta = -event.detail / 3;
+                delta = event.detail / 3;
             }
             this._zoomStart += delta * 0.01;
         };
