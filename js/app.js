@@ -497,7 +497,7 @@ var Chameleon;
             for (var patchIndex = 0; patchIndex < patches.length; patchIndex += 1) {
                 var patch = patches[patchIndex];
                 patchTotalArea += patch.canvas.width * patch.canvas.height;
-                if (patch.canvas.width < patch.canvas.height) {
+                if (patch.canvas.width > patch.canvas.height) {
                     var rotatedCanvas = document.createElement('canvas');
                     rotatedCanvas.width = patch.canvas.height;
                     rotatedCanvas.height = patch.canvas.width;
