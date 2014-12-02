@@ -33,7 +33,7 @@ Some limitations of the system have been discussed in the original paper. Other 
 This was our final project for course [CSCI 580 - 3-D Graphics and Rendering](http://www-bcf.usc.edu/~saty/edu/courses/CS580/f14/). Team members include (in alphabetical order):
 
 - Jakapun [@boong555](https://github.com/boong555)
-	- Implemented the initial canvas brushes.
+	- Implemented the canvas brushes.
 	- Implemented the update of "viewing texture" from "drawing texture".
 - Wansui [@wansuisu](https://github.com/wansuisu)
 	- Found out ways to import & export of meshes in `obj` format.
