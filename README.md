@@ -2,7 +2,9 @@
 
 ![Screenshot](https://github.com/tomtung/chameleon.js/wiki/screenshot.png)
 
-[Chameleon.js](https://tomtung.github.io/chameleon.js) is an HTML5 application for interactive 3D texture painting built on [three.js](http://threejs.org/) and [TypeScript](http://www.typescriptlang.org/) / JavaScript. The implementation is based on the [paper](http://www-ui.is.s.u-tokyo.ac.jp/~takeo/papers/i3dg2001.pdf) by [Takeo Igarashi](http://www-ui.is.s.u-tokyo.ac.jp/~takeo/) and Dennis Cosgrove about their [Chameleon](http://www-ui.is.s.u-tokyo.ac.jp/~takeo/chameleon/chameleon.htm) system.
+[Chameleon.js](https://tomtung.github.io/chameleon.js) is an HTML5 application for interactive 3D texture painting built on [three.js](http://threejs.org/) and [TypeScript](http://www.typescriptlang.org/) / JavaScript. UV texture mappings need not be provided and will be generated on the fly when you paint on the 3D model.
+
+Our implementation is based on the [paper](http://www-ui.is.s.u-tokyo.ac.jp/~takeo/papers/i3dg2001.pdf) by [Takeo Igarashi](http://www-ui.is.s.u-tokyo.ac.jp/~takeo/) and Dennis Cosgrove about their [Chameleon](http://www-ui.is.s.u-tokyo.ac.jp/~takeo/chameleon/chameleon.htm) system.
 
 ## Usage
 
