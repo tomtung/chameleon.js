@@ -4,6 +4,93 @@ module Chameleon {
 
     var EPSILON = 1e-3;
 
+    function isPointInCircle(point: THREE.Vector2, center: THREE.Vector2, radius: number): boolean {
+        return Math.abs(radius) >= EPSILON &&
+            center.distanceToSquared(point) <= radius * radius;
+    }
+
+    function isPointInTriangle(point: THREE.Vector2, t0: THREE.Vector2, t1: THREE.Vector2, t2: THREE.Vector2): boolean {
+        //compute vectors & dot products
+        var cx = point.x, cy = point.y,
+            v0x = t2.x - t0.x, v0y = t2.y - t0.y,
+            v1x = t1.x - t0.x, v1y = t1.y - t0.y,
+            v2x = cx - t0.x, v2y = cy - t0.y,
+            dot00 = v0x * v0x + v0y * v0y,
+            dot01 = v0x * v1x + v0y * v1y,
+            dot02 = v0x * v2x + v0y * v2y,
+            dot11 = v1x * v1x + v1y * v1y,
+            dot12 = v1x * v2x + v1y * v2y;
+
+        // Compute barycentric coordinates
+        var b = (dot00 * dot11 - dot01 * dot01),
+            inv = Math.abs(b) < EPSILON ? 0 : (1 / b),
+            u = (dot11 * dot02 - dot01 * dot12) * inv,
+            v = (dot00 * dot12 - dot01 * dot02) * inv;
+        return u >= 0 && v >= 0 && (u + v <= 1);
+    }
+
+    function lineOverlapsCircle(a: THREE.Vector2, b: THREE.Vector2, center: THREE.Vector2, radius: number): boolean {
+        //check to see if start or end points lie within circle
+        if (isPointInCircle(a, center, radius) || isPointInCircle(b, center, radius)) {
+            return true;
+        }
+
+        var x1 = a.x, y1 = a.y,
+            x2 = b.x, y2 = b.y,
+            cx = center.x, cy = center.y;
+
+        var c1x = cx - x1;
+        var c1y = cy - y1;
+        var e1x = x2 - x1;
+        var e1y = y2 - y1;
+        var k = c1x * e1x + c1y * e1y;
+
+        if (k <= 0) {
+            return false;
+        }
+
+        var len = Math.sqrt(e1x * e1x + e1y * e1y);
+        k /= len;
+        return k < len && c1x * c1x + c1y * c1y - k * k <= radius * radius;
+    }
+
+    function triangleCircleOverlaps(t1: THREE.Vector2, t2: THREE.Vector2, t3: THREE.Vector2, center: THREE.Vector2, radius: number): boolean {
+        return isPointInTriangle(center, t1, t2, t3) ||
+            lineOverlapsCircle(t1, t2, center, radius) ||
+            lineOverlapsCircle(t2, t3, center, radius) ||
+            lineOverlapsCircle(t3, t1, center, radius);
+    }
+
+    function lineSegmentsIntersect(v1: THREE.Vector2, v2: THREE.Vector2, v3: THREE.Vector2, v4: THREE.Vector2): boolean {
+        var a = v1.x, b = v1.y, c = v2.x, d = v2.y,
+            p = v3.x, q = v3.y, r = v4.x, s = v4.y;
+        var det, gamma, lambda;
+        det = (c - a) * (s - q) - (r - p) * (d - b);
+        if (Math.abs(det) < EPSILON) {
+            return false;
+        } else {
+            lambda = ((s - q) * (r - a) + (p - r) * (s - b)) / det;
+            gamma = ((b - d) * (r - a) + (c - a) * (s - b)) / det;
+            return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+        }
+    }
+
+    function triangleRectangleOverlaps(t1: THREE.Vector2, t2: THREE.Vector2, t3: THREE.Vector2,
+                                       r1: THREE.Vector2, r2: THREE.Vector2, r3: THREE.Vector2, r4: THREE.Vector2): boolean {
+        return isPointInTriangle(r1, t1, t2, t3) ||
+            isPointInTriangle(r2, t1, t2, t3) ||
+            isPointInTriangle(r3, t1, t2, t3) ||
+            isPointInTriangle(r4, t1, t2, t3) ||
+            isPointInTriangle(t1, r1, r2, r3) || isPointInTriangle(t1, r2, r3, r4) ||
+            isPointInTriangle(t2, r1, r2, r3) || isPointInTriangle(t2, r2, r3, r4) ||
+            isPointInTriangle(t3, r1, r2, r3) || isPointInTriangle(t3, r2, r3, r4) ||
+            lineSegmentsIntersect(r1, r2, t1, t2) || lineSegmentsIntersect(r1, r2, t2, t3) || lineSegmentsIntersect(r1, r2, t3, t1) ||
+            lineSegmentsIntersect(r1, r3, t1, t2) || lineSegmentsIntersect(r1, r3, t2, t3) || lineSegmentsIntersect(r1, r3, t3, t1) ||
+            lineSegmentsIntersect(r2, r4, t1, t2) || lineSegmentsIntersect(r2, r4, t2, t3) || lineSegmentsIntersect(r2, r4, t3, t1) ||
+            lineSegmentsIntersect(r3, r4, t1, t2) || lineSegmentsIntersect(r3, r4, t2, t3) || lineSegmentsIntersect(r3, r4, t3, t1);
+    }
+
+
     class AffectedFacesRecorder {
         private _nAffectedFaces: number = 0;
         private _affectedFaces: Uint32Array;
@@ -69,12 +156,12 @@ module Chameleon {
         private _drawingTextureScene: THREE.Scene;
         private _drawingVertexUvs: THREE.Vector2[];
         private _affectedFaces: AffectedFacesRecorder;
-        private _prePos: THREE.Vector2 = new THREE.Vector2();
+        private _prevStrokeCenter: THREE.Vector2 = new THREE.Vector2();
         private _preIndex: number = 0;
-        private _isFloodFillEmpty: Uint8Array;
-        private _isFloodFill: Uint8Array;
+        private _faceFloodFilledEmpty: Uint8Array;
+        private _faceFloodFilled: Uint8Array;
         private _nAdjacentFaces: Uint8Array;
-        private _AdjacentFacesList: Uint32Array[];
+        private _adjacentFacesList: Uint32Array[];
         private _backgroundSinglePixelCanvas = <HTMLCanvasElement>document.createElement('canvas');
         backgroundColor: string = '#FFFFFF';
 
@@ -497,161 +584,70 @@ module Chameleon {
             ).intersectObject(this._drawingTextureMesh);
         }
 
-        private _pointCircleCollide(point, circle, r) {
-            if (Math.abs(r) < EPSILON) return false;
-            var dx = circle.x - point.x;
-            var dy = circle.y - point.y;
-            return dx * dx + dy * dy <= r * r;
-        }
+        private _isFaceAffectedByStroke(faceIndex: number, strokeCenter: THREE.Vector2, strokeRadius: number, strokeStarts: boolean): boolean {
+            var t1 = new THREE.Vector2().copy(this._drawingTextureUvs[faceIndex][0]);
+            t1.x = t1.x * this._drawingCanvas.width;
+            t1.y = (1 - t1.y) * this._drawingCanvas.height;
 
-        private _lineCircleCollide(a, b, circle, radius) {
-            //check to see if start or end points lie within circle
-            if (this._pointCircleCollide(a, circle, radius)) {
+            var t2 = new THREE.Vector2().copy(this._drawingTextureUvs[faceIndex][1]);
+            t2.x = t2.x * this._drawingCanvas.width;
+            t2.y = (1 - t2.y) * this._drawingCanvas.height;
+
+            var t3 = new THREE.Vector2().copy(this._drawingTextureUvs[faceIndex][2]);
+            t3.x = t3.x * this._drawingCanvas.width;
+            t3.y = (1 - t3.y) * this._drawingCanvas.height;
+
+            if (triangleCircleOverlaps(t1, t2, t3, strokeCenter, strokeRadius)) {
                 return true;
             }
 
-            if (this._pointCircleCollide(b, circle, radius)) {
-                return true;
-            }
-
-            var x1 = a.x, y1 = a.y,
-                x2 = b.x, y2 = b.y,
-                cx = circle.x, cy = circle.y;
-
-            var c1x = cx - x1;
-            var c1y = cy - y1;
-            var e1x = x2 - x1;
-            var e1y = y2 - y1;
-            var k = c1x * e1x + c1y * e1y;
-
-            if (k > 0) {
-                var len = Math.sqrt(e1x * e1x + e1y * e1y);
-                k = k / len;
-                if (k < len) {
-                    if (c1x * c1x + c1y * c1y - k * k <= radius * radius)
-                        return true;
-                }
-            }
-
-            return false;
-        }
-
-        private _pointInTriangle(point, t0, t1, t2) {
-            //compute vectors & dot products
-            var cx = point.x, cy = point.y,
-                v0x = t2.x - t0.x, v0y = t2.y - t0.y,
-                v1x = t1.x - t0.x, v1y = t1.y - t0.y,
-                v2x = cx - t0.x, v2y = cy - t0.y,
-                dot00 = v0x * v0x + v0y * v0y,
-                dot01 = v0x * v1x + v0y * v1y,
-                dot02 = v0x * v2x + v0y * v2y,
-                dot11 = v1x * v1x + v1y * v1y,
-                dot12 = v1x * v2x + v1y * v2y;
-
-            // Compute barycentric coordinates
-            var b = (dot00 * dot11 - dot01 * dot01),
-                inv = Math.abs(b) < EPSILON ? 0 : (1 / b),
-                u = (dot11 * dot02 - dot01 * dot12) * inv,
-                v = (dot00 * dot12 - dot01 * dot02) * inv;
-            return u >= 0 && v >= 0 && (u + v <= 1);
-        }
-
-        private _intersect(v1: THREE.Vector2, v2: THREE.Vector2, v3: THREE.Vector2, v4: THREE.Vector2) {
-            var a = v1.x, b = v1.y, c = v2.x, d = v2.y,
-                p = v3.x, q = v3.y, r = v4.x, s = v4.y;
-            var det, gamma, lambda;
-            det = (c - a) * (s - q) - (r - p) * (d - b);
-            if (Math.abs(det) < EPSILON) {
+            if (strokeStarts) {
                 return false;
-            } else {
-                lambda = ((s - q) * (r - a) + (p - r) * (s - b)) / det;
-                gamma = ((b - d) * (r - a) + (c - a) * (s - b)) / det;
-                return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
             }
+
+            var centerDiff = new THREE.Vector2(
+                strokeCenter.y - this._prevStrokeCenter.y,
+                this._prevStrokeCenter.x - strokeCenter.x
+            );
+            if (centerDiff.lengthSq() < EPSILON) {
+                return false;
+            }
+            centerDiff.normalize().multiplyScalar(strokeRadius);
+
+            var r1 = new THREE.Vector2().copy(this._prevStrokeCenter).add(centerDiff);
+            var r2 = new THREE.Vector2().copy(this._prevStrokeCenter).sub(centerDiff);
+            var r3 = new THREE.Vector2().copy(strokeCenter).add(centerDiff);
+            var r4 = new THREE.Vector2().copy(strokeCenter).sub(centerDiff);
+
+            return triangleRectangleOverlaps(t1, t2, t3, r1, r2, r3, r4);
         }
 
-        private _add_recursive(faceIndex: number, center: THREE.Vector2, radius: number, start: boolean, prePos: THREE.Vector2) {
-            if (faceIndex >= 0 && !this._isFloodFill[faceIndex]) {
-                var v1 = new THREE.Vector2();
-                v1.copy(this._drawingTextureUvs[faceIndex][0]);
-                var v2 = new THREE.Vector2();
-                v2.copy(this._drawingTextureUvs[faceIndex][1]);
-                var v3 = new THREE.Vector2();
-                v3.copy(this._drawingTextureUvs[faceIndex][2]);
-                v1.x = v1.x * this._drawingCanvas.width;
-                v1.y = (1 - v1.y) * this._drawingCanvas.height;
-                v2.x = v2.x * this._drawingCanvas.width;
-                v2.y = (1 - v2.y) * this._drawingCanvas.height;
-                v3.x = v3.x * this._drawingCanvas.width;
-                v3.y = (1 - v3.y) * this._drawingCanvas.height;
-                var inside = this._pointInTriangle(center, v1, v2, v3);
-                var collide1 = this._lineCircleCollide(v1, v2, center, radius);
-                var collide2 = this._lineCircleCollide(v2, v3, center, radius);
-                var collide3 = this._lineCircleCollide(v3, v1, center, radius);
-
-                var insidepre = false;
-                var diff = new THREE.Vector2();
-                diff.set(center.y - prePos.y, -(center.x - prePos.x));
-                if (!start && Math.abs(diff.lengthSq()) > EPSILON) {
-                    diff.normalize().multiplyScalar(radius);
-                    var v5 = new THREE.Vector2();
-                    var v6 = new THREE.Vector2();
-                    var v7 = new THREE.Vector2();
-                    var v8 = new THREE.Vector2();
-                    v5.copy(prePos).add(diff);
-                    v6.copy(prePos).sub(diff);
-                    v7.copy(center).add(diff);
-                    v8.copy(center).sub(diff);
-                    if (this._pointInTriangle(v5, v1, v2, v3))
-                        insidepre = true;
-                    if (this._pointInTriangle(v6, v1, v2, v3))
-                        insidepre = true;
-                    if (this._pointInTriangle(v7, v1, v2, v3))
-                        insidepre = true;
-                    if (this._pointInTriangle(v8, v1, v2, v3))
-                        insidepre = true;
-                    if (this._pointInTriangle(v1, v5, v6, v7) || this._pointInTriangle(v1, v6, v7, v8))
-                        insidepre = true;
-                    if (this._pointInTriangle(v2, v5, v6, v7) || this._pointInTriangle(v2, v6, v7, v8))
-                        insidepre = true;
-                    if (this._pointInTriangle(v3, v5, v6, v7) || this._pointInTriangle(v3, v6, v7, v8))
-                        insidepre = true;
-                    if (this._intersect(v5, v6, v1, v2) || this._intersect(v5, v6, v2, v3) || this._intersect(v5, v6, v3, v1))
-                        insidepre = true;
-                    if (this._intersect(v5, v7, v1, v2) || this._intersect(v5, v7, v2, v3) || this._intersect(v5, v7, v3, v1))
-                        insidepre = true;
-                    if (this._intersect(v6, v8, v1, v2) || this._intersect(v6, v8, v2, v3) || this._intersect(v6, v8, v3, v1))
-                        insidepre = true;
-                    if (this._intersect(v7, v8, v1, v2) || this._intersect(v7, v8, v2, v3) || this._intersect(v7, v8, v3, v1))
-                        insidepre = true;
-                }
-
-                if (inside || collide1 || collide2 || collide3 || insidepre) {
-                    this._isFloodFill[faceIndex] = 1;
-                    this._affectedFaces.add(faceIndex);
-                    for (var i = 0; i < this._nAdjacentFaces[faceIndex]; i += 1) {
-                        var newfaceIndex = this._AdjacentFacesList[faceIndex][i];
-                        var cameradirection = new THREE.Vector3();
-                        cameradirection.copy(this._camera.position);
-                        cameradirection.normalize();
-                        if (this.geometry.faces[newfaceIndex].normal.dot(cameradirection) > 0) {
-                            this._add_recursive(newfaceIndex, center, radius, start, prePos);
-                        }
+        private _recordAffectedFaces(faceIndex: number, strokeCenter: THREE.Vector2, strokeRadius: number, strokeStarts: boolean) {
+            if (faceIndex >= 0 && !this._faceFloodFilled[faceIndex] &&
+                this._isFaceAffectedByStroke(faceIndex, strokeCenter, strokeRadius, strokeStarts)) {
+                this._faceFloodFilled[faceIndex] = 1;
+                this._affectedFaces.add(faceIndex);
+                for (var i = 0; i < this._nAdjacentFaces[faceIndex]; i += 1) {
+                    var newFaceIndex = this._adjacentFacesList[faceIndex][i];
+                    var cameraDirection = new THREE.Vector3().copy(this._camera.position).normalize();
+                    if (this.geometry.faces[newFaceIndex].normal.dot(cameraDirection) > 0) {
+                        this._recordAffectedFaces(newFaceIndex, strokeCenter, strokeRadius, strokeStarts);
                     }
                 }
             }
         }
 
-        public onStrokePainted(canvasPos: THREE.Vector2, radius: number, start: boolean): TextureManager {
+        public onStrokePainted(canvasPos: THREE.Vector2, radius: number, strokeStarts: boolean): TextureManager {
             var intersections = this._castRayFromMouse(canvasPos);
             if (intersections.length > 0) {
                 this._drawingMaterial.map.needsUpdate = true;
                 var faceIndex = intersections[0].face.materialIndex;
-                this._isFloodFill.set(this._isFloodFillEmpty);
-                this._add_recursive(faceIndex, canvasPos, radius, start, this._prePos);
-                if (start == false)
-                    this._add_recursive(this._preIndex, canvasPos, radius, start, this._prePos);
-                this._prePos = canvasPos;
+                this._faceFloodFilled.set(this._faceFloodFilledEmpty);
+                this._recordAffectedFaces(faceIndex, canvasPos, radius, strokeStarts);
+                if (!strokeStarts) {
+                    this._recordAffectedFaces(this._preIndex, canvasPos, radius, strokeStarts);
+                }
+                this._prevStrokeCenter.copy(canvasPos);
                 this._preIndex = faceIndex;
             }
 
@@ -675,12 +671,12 @@ module Chameleon {
                 _applyViewingTexture();
             this._textureInUse = TextureInUse.Viewing;
 
-            this._isFloodFillEmpty = new Uint8Array(this.geometry.faces.length);
-            this._isFloodFill = new Uint8Array(this.geometry.faces.length);
+            this._faceFloodFilledEmpty = new Uint8Array(this.geometry.faces.length);
+            this._faceFloodFilled = new Uint8Array(this.geometry.faces.length);
             this._nAdjacentFaces = new Uint8Array(this.geometry.faces.length);
-            this._AdjacentFacesList = new Array(this.geometry.faces.length);
+            this._adjacentFacesList = new Array(this.geometry.faces.length);
             for (var i = 0; i < this.geometry.faces.length; i += 1) {
-                this._AdjacentFacesList[i] = new Uint32Array(10);
+                this._adjacentFacesList[i] = new Uint32Array(10);
             }
             for (var i = 0; i < this.geometry.faces.length - 1; i += 1) {
                 for (var j = i + 1; j < this.geometry.faces.length; j += 1) {
@@ -698,8 +694,8 @@ module Chameleon {
                                 this.geometry.faces[i].normal.dot(this.geometry.faces[j].normal) > EPSILON)
                                 count++;
                     if (count == 2) {
-                        this._AdjacentFacesList[i][this._nAdjacentFaces[i]] = j;
-                        this._AdjacentFacesList[j][this._nAdjacentFaces[j]] = i;
+                        this._adjacentFacesList[i][this._nAdjacentFaces[i]] = j;
+                        this._adjacentFacesList[j][this._nAdjacentFaces[j]] = i;
                         this._nAdjacentFaces[i] += 1;
                         this._nAdjacentFaces[j] += 1;
                     }

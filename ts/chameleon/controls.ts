@@ -94,7 +94,7 @@ module Chameleon {
 
         handleResize() {
             var devicePixelRatio = window.devicePixelRatio || 1; // Evaluates to 2 if Retina
-            this._renderer.setSize( this.canvas.width/devicePixelRatio, this.canvas.height/devicePixelRatio);
+            this._renderer.setSize(this.canvas.width / devicePixelRatio, this.canvas.height / devicePixelRatio);
             this.updateCanvasBox();
             this._orthographicCameraControls.handleResize();
             this._perspectiveCameraControls.handleResize();
