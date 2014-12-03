@@ -197,6 +197,9 @@ declare var saveAs: any; // https://github.com/eligrey/FileSaver.js
                 if (chameleon) {
                     saveAs(chameleon.packTexture(), 'texture-export.zip');
                 }
+            },
+            openHelp: () => {
+                window.open('https://github.com/tomtung/chameleon.js#usage');
             }
         };
         var gui = new dat.GUI({width: 350});
@@ -230,6 +233,7 @@ declare var saveAs: any; // https://github.com/eligrey/FileSaver.js
         var reapplyBrushGuiSettings = setUpBrushSettingsGui(settings, brushFolder);
 
         gui.add(settings, 'exportObjTexture').name('Export Textured Model');
+        gui.add(settings, 'openHelp').name('Help');
 
         return () => {
             handleBackgroundReset(settings.backgroundColor);

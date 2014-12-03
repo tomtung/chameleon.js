@@ -1573,6 +1573,9 @@ var Chameleon;
                 if (chameleon) {
                     saveAs(chameleon.packTexture(), 'texture-export.zip');
                 }
+            },
+            openHelp: function () {
+                window.open('https://github.com/tomtung/chameleon.js#usage');
             }
         };
         var gui = new dat.GUI({ width: 350 });
@@ -1601,6 +1604,7 @@ var Chameleon;
         brushFolder.open();
         var reapplyBrushGuiSettings = setUpBrushSettingsGui(settings, brushFolder);
         gui.add(settings, 'exportObjTexture').name('Export Textured Model');
+        gui.add(settings, 'openHelp').name('Help');
         return function () {
             handleBackgroundReset(settings.backgroundColor);
             handlePerspectiveView(settings.camera.perspectiveView);
