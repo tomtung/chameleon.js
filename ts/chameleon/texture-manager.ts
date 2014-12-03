@@ -367,39 +367,42 @@ module Chameleon {
                 var collide3 = this._lineCircleCollide(v3, v1, center, radius);
 
                 var insidepre = false;
-                var diff = new THREE.Vector2();
-                diff.set(center.y - prePos.y, - (center.x - prePos.x));
-                diff.normalize().multiplyScalar(radius);
-                var v5 = new THREE.Vector2();
-                var v6 = new THREE.Vector2();
-                var v7 = new THREE.Vector2();
-                var v8 = new THREE.Vector2();
-                v5.copy(prePos).add(diff);
-                v6.copy(prePos).sub(diff);
-                v7.copy(center).add(diff);
-                v8.copy(center).sub(diff);
-                if (this._pointInTriangle(v5, v1, v2, v3))
-                    insidepre = true;
-                if (this._pointInTriangle(v6, v1, v2, v3))
-                    insidepre = true;
-                if (this._pointInTriangle(v7, v1, v2, v3))
-                    insidepre = true;
-                if (this._pointInTriangle(v8, v1, v2, v3))
-                    insidepre = true;
-                if (this._pointInTriangle(v1, v5, v6, v7) || this._pointInTriangle(v1, v6, v7, v8))
-                    insidepre = true;
-                if (this._pointInTriangle(v2, v5, v6, v7) || this._pointInTriangle(v2, v6, v7, v8))
-                    insidepre = true;
-                if (this._pointInTriangle(v3, v5, v6, v7) || this._pointInTriangle(v3, v6, v7, v8))
-                    insidepre = true;
-                if (this._intersect(v5, v6, v1, v2) || this._intersect(v5, v6, v2, v3) || this._intersect(v5, v6, v3, v1))
-                    insidepre = true;
-                if (this._intersect(v5, v7, v1, v2) || this._intersect(v5, v7, v2, v3) || this._intersect(v5, v7, v3, v1))
-                    insidepre = true;
-                if (this._intersect(v6, v8, v1, v2) || this._intersect(v6, v8, v2, v3) || this._intersect(v6, v8, v3, v1))
-                    insidepre = true;
-                if (this._intersect(v7, v8, v1, v2) || this._intersect(v7, v8, v2, v3) || this._intersect(v7, v8, v3, v1))
-                    insidepre = true;
+                if (start == false) {
+                    var diff = new THREE.Vector2();
+                    diff.set(center.y - prePos.y, - (center.x - prePos.x));
+                    diff.normalize().multiplyScalar(radius);
+                    var v5 = new THREE.Vector2();
+                    var v6 = new THREE.Vector2();
+                    var v7 = new THREE.Vector2();
+                    var v8 = new THREE.Vector2();
+                    v5.copy(prePos).add(diff);
+                    v6.copy(prePos).sub(diff);
+                    v7.copy(center).add(diff);
+                    v8.copy(center).sub(diff);
+                    this.drawingContext.fillRect(v5.x - 3, v5.y - 3, 6, 6);
+                    if (this._pointInTriangle(v5, v1, v2, v3))
+                        insidepre = true;
+                    if (this._pointInTriangle(v6, v1, v2, v3))
+                        insidepre = true;
+                    if (this._pointInTriangle(v7, v1, v2, v3))
+                        insidepre = true;
+                    if (this._pointInTriangle(v8, v1, v2, v3))
+                        insidepre = true;
+                    if (this._pointInTriangle(v1, v5, v6, v7) || this._pointInTriangle(v1, v6, v7, v8))
+                        insidepre = true;
+                    if (this._pointInTriangle(v2, v5, v6, v7) || this._pointInTriangle(v2, v6, v7, v8))
+                        insidepre = true;
+                    if (this._pointInTriangle(v3, v5, v6, v7) || this._pointInTriangle(v3, v6, v7, v8))
+                        insidepre = true;
+                    if (this._intersect(v5, v6, v1, v2) || this._intersect(v5, v6, v2, v3) || this._intersect(v5, v6, v3, v1))
+                        insidepre = true;
+                    if (this._intersect(v5, v7, v1, v2) || this._intersect(v5, v7, v2, v3) || this._intersect(v5, v7, v3, v1))
+                        insidepre = true;
+                    if (this._intersect(v6, v8, v1, v2) || this._intersect(v6, v8, v2, v3) || this._intersect(v6, v8, v3, v1))
+                        insidepre = true;
+                    if (this._intersect(v7, v8, v1, v2) || this._intersect(v7, v8, v2, v3) || this._intersect(v7, v8, v3, v1))
+                        insidepre = true;
+                }
 
                 if (inside || collide1 || collide2 || collide3 || insidepre) {
                     this._isFloodFill[faceIndex] = 1;
@@ -429,7 +432,6 @@ module Chameleon {
                 this._prePos = canvasPos;
                 this._preIndex = faceIndex;
             }
-
             return this;
         }
 
