@@ -379,7 +379,6 @@ module Chameleon {
                     v6.copy(prePos).sub(diff);
                     v7.copy(center).add(diff);
                     v8.copy(center).sub(diff);
-                    this.drawingContext.fillRect(v5.x - 3, v5.y - 3, 6, 6);
                     if (this._pointInTriangle(v5, v1, v2, v3))
                         insidepre = true;
                     if (this._pointInTriangle(v6, v1, v2, v3))
@@ -432,6 +431,7 @@ module Chameleon {
                 this._prePos = canvasPos;
                 this._preIndex = faceIndex;
             }
+            console.log(this._isFloodFill);
             return this;
         }
 
