@@ -654,25 +654,7 @@ module Chameleon {
             return this;
         }
 
-        // Assumption on geometry: material indices are same to face indices.
-        // This special treatment is implemented in the constructor of Controls
-        constructor(mesh: THREE.Mesh,
-                    renderer: THREE.WebGLRenderer,
-                    camera: THREE.OrthographicCamera) {
-            this._mesh = mesh;
-            this._renderer = renderer;
-            this._camera = camera;
-
-            this._affectedFaces = new AffectedFacesRecorder(this.geometry.faces.length);
-
-            this._initializeViewingTexture().
-                _initializePackedTexture().
-                _initializeDrawingTexture().
-                _applyViewingTexture();
-            this._textureInUse = TextureInUse.Viewing;
-
-            this._faceFloodFilledEmpty = new Uint8Array(this.geometry.faces.length);
-            this._faceFloodFilled = new Uint8Array(this.geometry.faces.length);
+        private _buildAdjacentFacesList() {
             this._nAdjacentFaces = new Uint8Array(this.geometry.faces.length);
             this._adjacentFacesList = new Array(this.geometry.faces.length);
             for (var i = 0; i < this.geometry.faces.length; i += 1) {
@@ -701,6 +683,28 @@ module Chameleon {
                     }
                 }
             }
+        }
+
+        // Assumption on geometry: material indices are same to face indices.
+        // This special treatment is implemented in the constructor of Controls
+        constructor(mesh: THREE.Mesh,
+                    renderer: THREE.WebGLRenderer,
+                    camera: THREE.OrthographicCamera) {
+            this._mesh = mesh;
+            this._renderer = renderer;
+            this._camera = camera;
+
+            this._affectedFaces = new AffectedFacesRecorder(this.geometry.faces.length);
+
+            this._initializeViewingTexture().
+                _initializePackedTexture().
+                _initializeDrawingTexture().
+                _applyViewingTexture();
+            this._textureInUse = TextureInUse.Viewing;
+
+            this._faceFloodFilledEmpty = new Uint8Array(this.geometry.faces.length);
+            this._faceFloodFilled = new Uint8Array(this.geometry.faces.length);
+            this._buildAdjacentFacesList();
         }
     }
 }

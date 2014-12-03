@@ -325,28 +325,7 @@ var Chameleon;
             this._textureInUse = 0 /* Viewing */;
             this._faceFloodFilledEmpty = new Uint8Array(this.geometry.faces.length);
             this._faceFloodFilled = new Uint8Array(this.geometry.faces.length);
-            this._nAdjacentFaces = new Uint8Array(this.geometry.faces.length);
-            this._adjacentFacesList = new Array(this.geometry.faces.length);
-            for (var i = 0; i < this.geometry.faces.length; i += 1) {
-                this._adjacentFacesList[i] = new Uint32Array(10);
-            }
-            for (var i = 0; i < this.geometry.faces.length - 1; i += 1) {
-                for (var j = i + 1; j < this.geometry.faces.length; j += 1) {
-                    var vi = [this.geometry.faces[i].a, this.geometry.faces[i].b, this.geometry.faces[i].c];
-                    var vj = [this.geometry.faces[j].a, this.geometry.faces[j].b, this.geometry.faces[j].c];
-                    var count = 0;
-                    for (var k = 0; k < 3; k++)
-                        for (var l = 0; l < 3; l++)
-                            if (this.geometry.vertices[vi[k]].x - this.geometry.vertices[vj[l]].x < EPSILON && this.geometry.vertices[vi[k]].x - this.geometry.vertices[vj[l]].x > -EPSILON && this.geometry.vertices[vi[k]].y - this.geometry.vertices[vj[l]].y < EPSILON && this.geometry.vertices[vi[k]].y - this.geometry.vertices[vj[l]].y > -EPSILON && this.geometry.vertices[vi[k]].z - this.geometry.vertices[vj[l]].z < EPSILON && this.geometry.vertices[vi[k]].z - this.geometry.vertices[vj[l]].z > -EPSILON && this.geometry.faces[i].normal.dot(this.geometry.faces[j].normal) > EPSILON)
-                                count++;
-                    if (count == 2) {
-                        this._adjacentFacesList[i][this._nAdjacentFaces[i]] = j;
-                        this._adjacentFacesList[j][this._nAdjacentFaces[j]] = i;
-                        this._nAdjacentFaces[i] += 1;
-                        this._nAdjacentFaces[j] += 1;
-                    }
-                }
-            }
+            this._buildAdjacentFacesList();
         }
         Object.defineProperty(TextureManager.prototype, "drawingContext", {
             get: function () {
@@ -714,6 +693,30 @@ var Chameleon;
                 this._preIndex = faceIndex;
             }
             return this;
+        };
+        TextureManager.prototype._buildAdjacentFacesList = function () {
+            this._nAdjacentFaces = new Uint8Array(this.geometry.faces.length);
+            this._adjacentFacesList = new Array(this.geometry.faces.length);
+            for (var i = 0; i < this.geometry.faces.length; i += 1) {
+                this._adjacentFacesList[i] = new Uint32Array(10);
+            }
+            for (var i = 0; i < this.geometry.faces.length - 1; i += 1) {
+                for (var j = i + 1; j < this.geometry.faces.length; j += 1) {
+                    var vi = [this.geometry.faces[i].a, this.geometry.faces[i].b, this.geometry.faces[i].c];
+                    var vj = [this.geometry.faces[j].a, this.geometry.faces[j].b, this.geometry.faces[j].c];
+                    var count = 0;
+                    for (var k = 0; k < 3; k++)
+                        for (var l = 0; l < 3; l++)
+                            if (this.geometry.vertices[vi[k]].x - this.geometry.vertices[vj[l]].x < EPSILON && this.geometry.vertices[vi[k]].x - this.geometry.vertices[vj[l]].x > -EPSILON && this.geometry.vertices[vi[k]].y - this.geometry.vertices[vj[l]].y < EPSILON && this.geometry.vertices[vi[k]].y - this.geometry.vertices[vj[l]].y > -EPSILON && this.geometry.vertices[vi[k]].z - this.geometry.vertices[vj[l]].z < EPSILON && this.geometry.vertices[vi[k]].z - this.geometry.vertices[vj[l]].z > -EPSILON && this.geometry.faces[i].normal.dot(this.geometry.faces[j].normal) > EPSILON)
+                                count++;
+                    if (count == 2) {
+                        this._adjacentFacesList[i][this._nAdjacentFaces[i]] = j;
+                        this._adjacentFacesList[j][this._nAdjacentFaces[j]] = i;
+                        this._nAdjacentFaces[i] += 1;
+                        this._nAdjacentFaces[j] += 1;
+                    }
+                }
+            }
         };
         return TextureManager;
     })();
