@@ -1338,7 +1338,8 @@ var Chameleon;
             configurable: true
         });
         Controls.prototype.handleResize = function () {
-            this._renderer.setSize(this.canvas.width, this.canvas.height);
+            var devicePixelRatio = window.devicePixelRatio || 1; // Evaluates to 2 if Retina
+            this._renderer.setSize(this.canvas.width / devicePixelRatio, this.canvas.height / devicePixelRatio);
             this.updateCanvasBox();
             this._orthographicCameraControls.handleResize();
             this._perspectiveCameraControls.handleResize();
