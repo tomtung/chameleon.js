@@ -1170,11 +1170,11 @@ var Chameleon;
             this._state = 0 /* Idle */;
             this._mesh = new THREE.Mesh();
             this.canvasBox = { left: 0, top: 0, width: 0, height: 0 };
-            this._headLight = new THREE.PointLight(0xFFFFFF, 0.4);
+            this._headLight = new THREE.PointLight(0xFFFFFF, 0.25);
             this._perspectiveView = false;
             this._scene = (function () {
                 var scene = new THREE.Scene();
-                var ambientLight = new THREE.AmbientLight(0x777777);
+                var ambientLight = new THREE.AmbientLight(0x999999);
                 scene.add(ambientLight);
                 var light = new THREE.DirectionalLight(0xFFFFFF, 0.2);
                 light.position.set(320, 390, 700);

@@ -29,7 +29,7 @@ module Chameleon {
             this.canvasBox.height = canvasRect.height;
         }
 
-        private _headLight: THREE.PointLight = new THREE.PointLight(0xFFFFFF, 0.4);
+        private _headLight: THREE.PointLight = new THREE.PointLight(0xFFFFFF, 0.25);
         private _orthographicCamera: THREE.OrthographicCamera;
         private _orthographicCameraControls: OrthographicCameraControls;
         private _perspectiveCamera: THREE.PerspectiveCamera;
@@ -63,7 +63,7 @@ module Chameleon {
         private _scene: THREE.Scene = (() => {
             var scene = new THREE.Scene();
 
-            var ambientLight = new THREE.AmbientLight(0x777777);
+            var ambientLight = new THREE.AmbientLight(0x999999);
             scene.add(ambientLight);
 
             var light = new THREE.DirectionalLight(0xFFFFFF, 0.2);
